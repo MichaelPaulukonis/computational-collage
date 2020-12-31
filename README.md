@@ -1,5 +1,6 @@
 # generative-collage
 A Web-based Generative Collage Tool That Breathes New Life Into One’s Photo Collections
+
 Developed by Zhixin Lin
 
 
@@ -7,4 +8,5 @@ This project uses p5.js to explore ways to breathe new life into one’s digital
 
 
 The project is live at: https://www.openprocessing.org/sketch/1043711
+
 Learn more about the project at: zhixinlin.com/computational-collage
