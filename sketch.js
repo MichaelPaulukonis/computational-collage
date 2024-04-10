@@ -16,20 +16,32 @@ function preload() {
   for (let i = 0; i < 6; i++) {
     images[i] = loadImage("uploads/trees" + i + ".jpg");
   }
-  
+
   // Load sounds: Sound from Zapsplat.com
   for (let i = 0; i < 4; i++) {
     sounds[i] = loadSound("uploads/sound" + i + ".mp3");
   }
-  
+
   actionSound = loadSound("uploads/glassy0.mp3");
-  
+
 }
 
 
 function setup() {
   c = createCanvas(1000, 750);
 
+  setupButtons()
+
+  // Proportionally resize all images to be the same width as the canvas
+  for (let i = 0, n = images.length; i < n; i++) {
+    images[i].resize(width, 0);
+  }
+
+  noLoop();
+}
+
+
+function setupButtons() {
   var btnX = 20;
   var btnYStart = 160;
   var btnYStep = 40;
@@ -141,15 +153,7 @@ function setup() {
   resetBtn.style('padding-top', '3px');
   resetBtn.style('padding-bottom', '3px');
   resetBtn.hide();
-
-  // Proportionally resize all images to be the same width as the canvas
-  for (let i = 0, n = images.length; i < n; i++) {
-    images[i].resize(width, 0);
-  }
-
-  noLoop();
 }
-
 
 function draw() {
   background(0);
@@ -240,7 +244,7 @@ function mode0() {
       }
     }
   }
-  
+
   sounds[0].play();
 }
 
@@ -276,7 +280,7 @@ function mode1() {
     }
     isHorizontal = true;
   }
-  
+
   random(sounds).play();
 }
 
@@ -402,7 +406,7 @@ function mode6() {
       x += tileWidth;
     }
   }
-  
+
   random(sounds).play();
 }
 
