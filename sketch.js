@@ -8,8 +8,10 @@ let isBlended = false; // Initial bool value of the image blending status
 let img; // singel image buffer
 let probFactor = 0.9; // mondrian division probability factor
 let thickness = 0; // mondrian grid thickness
-let c; // canvas
-
+let displayCanvas; // canvas
+let namer = filenamer(datestring());
+const modes = [ mode0, mode1, mode2, mode3, mode4, mode5, mode6, mode7, mode8, mode9 ]
+let target // graphics object at full size
 
 function preload() {
   // Load consistently-named images into an array
@@ -23,21 +25,31 @@ function preload() {
   }
 
   actionSound = loadSound("uploads/glassy0.mp3");
-
 }
 
 
 function setup() {
-  c = createCanvas(1000, 750);
+  displayCanvas = createCanvas(500, 500);
+  displayCanvas.drop(handleFile);
+  target = createGraphics(1000, 1000)
 
   setupButtons()
 
-  // Proportionally resize all images to be the same width as the canvas
   for (let i = 0, n = images.length; i < n; i++) {
-    images[i].resize(width, 0);
+    images[i] = squareCrop(images[i])
+    images[i].resize(target.width, 0);
   }
 
   noLoop();
+}
+
+const squareCrop = (img) => {
+  let w = img.width;
+  let h = img.height;
+  let min = Math.min(w, h);
+  let x = (w - min) / 2;
+  let y = (h - min) / 2;
+  return img.get(x, y, min, min);
 }
 
 
@@ -95,36 +107,10 @@ function setupButtons() {
       modeBtn.mousePressed(mode0);
     } else {
       modeBtn = createButton('mode ' + n);
-      if (n == 1) {
-        modeBtn.mousePressed(mode1);
-      }
-      if (n == 2) {
-        modeBtn.mousePressed(mode2);
-      }
-      if (n == 3) {
-        modeBtn.mousePressed(mode3);
-      }
-      if (n == 4) {
-        modeBtn.mousePressed(mode4);
-      }
-      if (n == 5) {
-        modeBtn.mousePressed(mode5);
-      }
-      if (n == 6) {
-        modeBtn.mousePressed(mode6);
-      }
-      if (n == 7) {
-        modeBtn.mousePressed(mode7);
-      }
-      if (n == 8) {
-        modeBtn.mousePressed(mode8);
-      }
-      if (n == 9) {
-        modeBtn.mousePressed(mode9);
-      }
+      modeBtn.mousePressed(modes[n]);
     }
 
-    modeBtn.position(btnX, btnYStart += btnYStep);
+    modeBtn.position(btnX, btnYStart + (btnYStep * n + 1))
     modeBtn.style('background-color', blackTrans);
     modeBtn.style('color', white);
     modeBtn.style('border', "1px solid white");
@@ -136,7 +122,7 @@ function setupButtons() {
   // Blend mode button
   blendBtn = createButton('blend');
   blendBtn.mousePressed(blendLightest);
-  blendBtn.position(btnX, btnYStart += btnYStep);
+  blendBtn.position(btnX, btnYStart + btnYStep * 10); // sub-optimal
   blendBtn.style('background-color', blackTrans);
   blendBtn.style('color', white);
   blendBtn.style('border', "none");
@@ -146,7 +132,7 @@ function setupButtons() {
   // Reset blend mode button
   resetBtn = createButton('clear blend');
   resetBtn.mousePressed(resetBlend);
-  resetBtn.position(btnX, btnYStart);
+  resetBtn.position(btnX, btnYStart + btnYStep * 10);
   resetBtn.style('background-color', blackTrans);
   resetBtn.style('color', white);
   resetBtn.style('border', "none");
@@ -168,17 +154,38 @@ function draw() {
   random(sounds).play();
 }
 
+function keyTyped() {
+  if (key === "s") {
+    download()
+  } else if (key === "b") {
+    blendLightest()
+  } else if (key === "r") {
+    resetBlend()
+  } else if (key === "c") {
+    clearUploads()
+  } else if (key === "u") {
+    dropFiles()
+  } else if (key === "h") {
+    isHorizontal = !isHorizontal
+  } else if (key === "p") {
+    probFactor = (probFactor + 0.1) % 1
+  } else if (key === "t") {
+    thickness = (thickness + 1) % 10
+  } else if ('0123456789'.includes(key)) {
+    modes[key]()
+  }
+  return false
+}
 
 function dropFiles() {
   fill(60);
   noStroke();
-  rect(0, 0, width, height);
-  c.drop(handleFile);
+  rect(0, 0, displayCanvas.width, displayCanvas.height);
 
   fill(255);
   textSize(24);
   textAlign(CENTER);
-  text('Drag image files onto the canvas.', width / 2, height / 2);
+  text('Drag image files onto the canvas.', displayCanvas.width / 2, displayCanvas.height / 2);
 }
 
 
@@ -188,7 +195,8 @@ function handleFile(file) {
     images.length = 0;
     isUploads = true;
     loadImage(file.data, img => {
-      img.resize(width, height);
+      img = squareCrop(img)
+      img.resize(target.width, 0);
       userUploads.push(img);
       images = [...userUploads];
       draw();
@@ -205,7 +213,8 @@ function clearUploads() {
   images.length = 0;
   for (let i = 0; i < 6; i++) {
     images[i] = loadImage("uploads/trees" + i + ".jpg", img => {
-      img.resize(width, 0);
+      img = squareCrop(img)
+      img.resize(displayCanvas.width, 0);
     });
   }
   isUploads = false;
@@ -219,7 +228,8 @@ function clearUploads() {
 // Download current canvas
 function download() {
   actionSound.play();
-  saveCanvas('download', 'png')
+  // saveCanvas(namer(), "png");
+  save(target, namer(), "png")
 }
 
 
@@ -228,8 +238,8 @@ function mode0() {
   let tileCountX = 3;
   let tileCountY = 3;
 
-  let tileWidth = width / tileCountX;
-  let tileHeight = height / tileCountY;
+  let tileWidth = displayCanvas.width / tileCountX;
+  let tileHeight = displayCanvas.height / tileCountY;
 
   let i = 0;
   for (let gridY = 0; gridY < tileCountY; gridY++) {
@@ -252,7 +262,7 @@ function mode0() {
 // Full-length strips
 function mode1() {
   if (isHorizontal) {
-    for (let y = 0; y < height; y += 10) {
+    for (let y = 0; y < target.height; y += 10) {
       img = random(images);
 
       // pick a y point to get the strip
@@ -261,14 +271,14 @@ function mode1() {
       // use get() to extract a strip of the image
       let strip = img.get(0, stripYPosition, img.width, 10);
 
-      image(strip, 0, y);
+      target.image(strip, 0, y);
     }
     isHorizontal = false;
   }
 
   // Toggle to vertical
   else {
-    for (let x = 0; x < width; x += 10) {
+    for (let x = 0; x < target.width; x += 10) {
       img = random(images);
 
       // pick a x point to get the strip
@@ -276,18 +286,19 @@ function mode1() {
 
       // use get() to extract a strip of the image
       let strip = img.get(stripXPosition, 0, 10, img.width);
-      image(strip, x, 0);
+      target.image(strip, x, 0);
     }
     isHorizontal = true;
   }
-
+  // TODO: need a better solution
+  image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play();
 }
 
 
 // Collaging random chunks
 function mode2() {
-  image(random(images), 0, 0)
+  target.image(random(images), 0, 0)
   for (let i = 0; i < 200; i++) {
     img = random(images);
     stripX = random(img.width);
@@ -295,23 +306,24 @@ function mode2() {
     stripW = random(50, 150);
     stripH = random(50, 150);
     let strip = img.get(stripX, stripY, stripW, stripH);
-    image(strip, stripX, stripY);
+    target.image(strip, stripX, stripY);
   }
   // filter(ERODE);
   // filter(THRESHOLD, 0.4);
-  filter(DILATE);
+  target.filter(DILATE);
+  image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play();
 }
 
 
 // Regular grid of stretched pixels
 function mode3() {
-  noStroke();
+  target.noStroke();
   let tileHeight = 20;
   let tileWidth = random(20, 50);
 
-  let tileCountY = height / tileHeight;
-  let tileCountX = width / tileWidth;
+  let tileCountY = target.height / tileHeight;
+  let tileCountX = target.width / tileWidth;
 
   for (let gridY = 0; gridY < tileCountY; gridY++) {
     for (let gridX = 0; gridX < tileCountX; gridX++) {
@@ -319,20 +331,21 @@ function mode3() {
 
       for (let j = 0; j < tileHeight; j++) {
         let c = img.get(gridX * tileWidth, gridY * tileHeight + j);
-        fill(c);
-        rect(gridX * tileWidth, gridY * tileHeight + j, tileWidth, 1);
+        target.fill(c);
+        target.rect(gridX * tileWidth, gridY * tileHeight + j, tileWidth, 1);
       }
     }
   }
+  image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play();
 }
 
 
 // Floating pixels
 function mode4() {
-  fill(0);
-  rect(0, 0, width, height);
-  noStroke();
+  target.fill(0);
+  target.rect(0, 0, target.width, target.height);
+  target.noStroke();
   for (let i = 0; i < 900; i++) {
     img = random(images);
     stripX = random(img.width);
@@ -341,24 +354,25 @@ function mode4() {
     stripH = random(20, 30);
     if (random(0, 1) > 0.6) {
       let c = img.get(stripX, stripY);
-      fill(c);
-      rect(stripX, stripY, stripW, stripH);
+      target.fill(c);
+      target.rect(stripX, stripY, stripW, stripH);
     } else {
       let strip = img.get(stripX, stripY, stripW, stripH);
-      image(strip, stripX, stripY);
+      target.image(strip, stripX, stripY);
     }
   }
+  image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play();
 }
 
 
 // Floating rounded rectangular splashes
 function mode5() {
-  noStroke();
+  target.noStroke();
   img = random(images);
-  let c = img.get(width / 2, height / 2);
-  fill(c);
-  rect(0, 0, width, height);
+  let c = img.get(target.width / 2, target.height / 2);
+  target.fill(c);
+  target.rect(0, 0, target.width, target.height);
 
   for (let i = 0; i < 1500; i++) {
     img = random(images);
@@ -368,68 +382,70 @@ function mode5() {
     stripH = random(5, 30);
 
     let c = img.get(stripX, stripY);
-    fill(c);
-    rect(stripX, stripY, stripW, stripH, 5);
+    target.fill(c);
+    target.rect(stripX, stripY, stripW, stripH, 5);
   }
+  image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play();
 }
 
 
 // Horizontal free strips
 function mode6() {
-  noStroke();
+  target.noStroke();
   let tileHeight = 5;
-  let tileCountY = height / tileHeight;
+  let tileCountY = target.height / tileHeight;
 
   for (let gridY = 0; gridY < tileCountY; gridY++) {
     let x = 0;
-    while (x < width) {
+    while (x < target.width) {
       let tileWidth = random(15, 40);
       let y = gridY * tileHeight;
       img = random(images);
 
       // Base grid tile
-      rect(x, y, tileWidth, tileHeight);
+      target.rect(x, y, tileWidth, tileHeight);
 
       if (random(0, 1) > 0.7) {
         let c = img.get(x, gridY * tileHeight);
-        fill(c);
-        rect(random(x - 10, x + 10), random(y - 10, y + 10), tileWidth, tileHeight);
+        target.fill(c);
+        target.rect(random(x - 10, x + 10), random(y - 10, y + 10), tileWidth, tileHeight);
       }
 
       // Offset tile
       else {
         let strip = img.get(x, y, tileWidth, tileHeight);
-        image(strip, random(x - 10, x + 10), random(y - 10, y + 10));
+        target.image(strip, random(x - 10, x + 10), random(y - 10, y + 10));
       }
 
       x += tileWidth;
     }
   }
-
+  image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play();
 }
 
 
 // Mondrian stripes
 function mode7() {
-  noStroke();
-  mondrian(width - thickness, height - thickness,
+  target.noStroke();
+  mondrian(target.width - thickness, target.height - thickness,
     thickness / 2, thickness / 2, 1.0, (random(2) < 1));
-  filter(DILATE);
+  target.filter(DILATE);
+  image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play();
 }
 
 
 // Horizontally stretched
 function mode8() {
-  noStroke();
+  target.noStroke();
   // Create a background
   bg = random(images);
-  for (let j = 0; j < height; j += 5) {
-    let c = bg.get(width / 2, j);
-    fill(c);
-    rect(0, j, width, 5);
+  for (let j = 0; j < target.height; j += 5) {
+    let c = bg.get(target.width / 2, j);
+    target.fill(c);
+    target.rect(0, j, target.width, 5);
   }
 
   for (let i = 0; i < 200; i++) {
@@ -438,49 +454,48 @@ function mode8() {
     stripY = random(img.height);
     stripW = random(50, 150);
     stripH = random(50, 150);
-    // let strip = img.get(stripX, stripY, stripW, stripH);
-    // image(strip, stripX, stripY);
 
     for (let j = 0; j < stripH; j++) {
       let c = img.get(stripX, stripY + j);
-      fill(c);
-      rect(stripX, stripY + j, stripW, 1);
+      target.fill(c);
+      target.rect(stripX, stripY + j, stripW, 1);
     }
   }
-  filter(DILATE);
+  target.filter(DILATE);
+  image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play();
 }
 
 
 // Concentric circle splashes
 function mode9() {
-  fill(0);
-  noStroke();
-  rect(0, 0, width, height);
-  noFill();
-  blendMode(LIGHTEST);
+  target.fill(0);
+  target.noStroke();
+  target.rect(0, 0, width, height);
+  target.noFill();
+  target.blendMode(LIGHTEST);
 
   for (let i = 0; i < 450; i++) {
     img = random(images);
-    X = random(width);
-    Y = random(height);
+    X = random(target.width);
+    Y = random(target.height);
     R = random(5, 200);
     interval = int(random(4, 10));
     numColors = int(random(1, 3));
-    strokeWeight(int(random(1, 3)));
+    target.strokeWeight(int(random(1, 3)));
 
     // Color palette
     let colors = [];
     for (let n = 0; n < numColors; n++) {
-      colors[n] = img.get(min(width - 2, X + 2 * n), min(height - 2, Y + 2 * n));
+      colors[n] = img.get(min(target.width - 2, X + 2 * n), min(target.height - 2, Y + 2 * n));
     }
 
     let cIndex = 0;
 
     // Draw con-centric circles
     for (let r = 0; r < R; r += interval) {
-      stroke(colors[cIndex]);
-      circle(X, Y, r);
+      target.stroke(colors[cIndex]);
+      target.circle(X, Y, r);
 
       if (cIndex == numColors - 1) {
         cIndex = 0;
@@ -490,8 +505,10 @@ function mode9() {
     }
   }
   if (!isBlended) {
-    blendMode(BLEND);
+    target.blendMode(BLEND);
   }
+  image(target, 0, 0, displayCanvas.width, displayCanvas.height)
+
   sounds[3].play();
 }
 
@@ -523,8 +540,8 @@ function mondrian(w, h, x, y, prob, vertical) {
       if (random(1) > 0.5) {
         for (j = 0; j < tileHeight; j++) {
           let c = img.get(x + thickness / 2, y + thickness / 2 + j);
-          fill(c);
-          rect(x + thickness / 2, y + thickness / 2 + j, tileWidth, 1);
+          target.fill(c);
+          target.rect(x + thickness / 2, y + thickness / 2 + j, tileWidth, 1);
         }
       }
 
@@ -532,18 +549,16 @@ function mondrian(w, h, x, y, prob, vertical) {
       else {
         for (j = 0; j < tileWidth; j++) {
           let c = img.get(x + thickness / 2 + j, y + thickness / 2);
-          fill(c);
-          rect(x + thickness / 2 + j, y + thickness / 2, 1, tileHeight);
+          target.fill(c);
+          target.rect(x + thickness / 2 + j, y + thickness / 2, 1, tileHeight);
         }
       }
     } else {
       let strip = img.get(x + thickness / 2, y + thickness / 2, tileWidth, tileHeight);
       if (tileHeight != 0 && tileWidth != 0) {
-        image(strip, x + thickness / 2, y + thickness / 2);
+        target.image(strip, x + thickness / 2, y + thickness / 2);
       }
-
     }
-
   }
 }
 
