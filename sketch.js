@@ -10,7 +10,18 @@ let probFactor = 0.9; // mondrian division probability factor
 let thickness = 0; // mondrian grid thickness
 let displayCanvas; // canvas
 let namer = filenamer(datestring());
-const modes = [ mode0, mode1, mode2, mode3, mode4, mode5, mode6, mode7, mode8, mode9 ]
+const modes = [
+  [mode0, 'Image gallery'],
+  [mode1, 'Full-length strips'],
+  [mode2, 'Collaging random chunks'],
+  [mode3, 'Regular grid of stretched pixels'],
+  [mode4, 'Floating pixels'],
+  [mode5, 'Floating rounded rectangular splashes'],
+  [mode6, 'Horizontal free strips'],
+  [mode7, 'Mondrian stripes'],
+  [mode8, 'Horizontally stretched'],
+  [mode9, 'Concentric circle splashes']
+]
 let target // graphics object at full size
 
 function preload() {
@@ -104,13 +115,14 @@ function setupButtons() {
   for (let n = 0; n < 10; n++) {
     if (n == 0) {
       modeBtn = createButton('original');
-      modeBtn.mousePressed(mode0);
     } else {
       modeBtn = createButton('mode ' + n);
-      modeBtn.mousePressed(modes[n]);
     }
+    modeBtn.elt.title = (modes[n].length > 1) ? modes[n][1] : `Mode ${n}`
 
-    modeBtn.position(btnX, btnYStart + (btnYStep * n + 1))
+    modeBtn.mousePressed(modes[n][0]);
+    modeBtn.position(btnX, btnYStart + (btnYStep * (n + 1)))
+    // TODO: move into css
     modeBtn.style('background-color', blackTrans);
     modeBtn.style('color', white);
     modeBtn.style('border', "1px solid white");
@@ -122,7 +134,7 @@ function setupButtons() {
   // Blend mode button
   blendBtn = createButton('blend');
   blendBtn.mousePressed(blendLightest);
-  blendBtn.position(btnX, btnYStart + btnYStep * 10); // sub-optimal
+  blendBtn.position(btnX, btnYStart + btnYStep * 11); // sub-optimal
   blendBtn.style('background-color', blackTrans);
   blendBtn.style('color', white);
   blendBtn.style('border', "none");
@@ -132,7 +144,7 @@ function setupButtons() {
   // Reset blend mode button
   resetBtn = createButton('clear blend');
   resetBtn.mousePressed(resetBlend);
-  resetBtn.position(btnX, btnYStart + btnYStep * 10);
+  resetBtn.position(btnX, btnYStart + btnYStep * 11);
   resetBtn.style('background-color', blackTrans);
   resetBtn.style('color', white);
   resetBtn.style('border', "none");
@@ -163,6 +175,7 @@ function keyTyped() {
     resetBlend()
   } else if (key === "c") {
     clearUploads()
+    namer = filenamer(datestring())
   } else if (key === "u") {
     dropFiles()
   } else if (key === "h") {
@@ -172,7 +185,14 @@ function keyTyped() {
   } else if (key === "t") {
     thickness = (thickness + 1) % 10
   } else if ('0123456789'.includes(key)) {
-    modes[key]()
+    modes[key][0]()
+  } else if (key === '`') {
+    for(let i = 0; i < 10; i++) {
+      modes[7][0]()
+      // I "solved" this problem by using a custom library - see polychrometext
+      download()
+      console.log(`saved collage ${i}`)
+    }
   }
   return false
 }
@@ -227,9 +247,10 @@ function clearUploads() {
 
 // Download current canvas
 function download() {
-  actionSound.play();
-  // saveCanvas(namer(), "png");
-  save(target, namer(), "png")
+  // actionSound.play();
+  const name = namer() + '.png'
+  save(target, name)
+  console.log('downloaded ' + name)
 }
 
 
@@ -466,12 +487,11 @@ function mode8() {
   random(sounds).play();
 }
 
-
 // Concentric circle splashes
 function mode9() {
   target.fill(0);
   target.noStroke();
-  target.rect(0, 0, width, height);
+  target.rect(0, 0, target.width, target.height);
   target.noFill();
   target.blendMode(LIGHTEST);
 
@@ -511,7 +531,6 @@ function mode9() {
 
   sounds[3].play();
 }
-
 
 // Draw mondrian-style grid of collages
 function mondrian(w, h, x, y, prob, vertical) {
@@ -562,7 +581,6 @@ function mondrian(w, h, x, y, prob, vertical) {
   }
 }
 
-
 // Reset default blend mode
 function resetBlend() {
   blendMode(BLEND);
@@ -571,7 +589,6 @@ function resetBlend() {
   blendBtn.show();
   actionSound.play();
 }
-
 
 // Set to Lightest image blend mode
 function blendLightest() {
