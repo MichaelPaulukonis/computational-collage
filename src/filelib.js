@@ -17,3 +17,8 @@ const filenamer = (prefix) => {
     return name
   }
 }
+
+export {
+  datestring,
+  filenamer
+}

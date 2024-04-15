@@ -1,3 +1,9 @@
+import saveAs from 'file-saver'
+import '../css/collage.style.css';
+import {sketch} from 'p5js-wrapper';
+import 'p5js-wrapper/sound';
+import { datestring, filenamer } from './filelib'
+
 let sounds = []; // array for sound effects
 let actionSound; // Sound for actions inclu save, blend & clear uploads
 let images = []; // array for source images
@@ -9,6 +15,12 @@ let img; // singel image buffer
 let probFactor = 0.9; // mondrian division probability factor
 let thickness = 0; // mondrian grid thickness
 let displayCanvas; // canvas
+let mondrianProb = 1.2
+let config = {
+  mondrianStripes: false,
+  mondrianTileSize: 50
+}
+let uploadBtn, downloadBtn, clearBtn, blendBtn, resetBtn
 let namer = filenamer(datestring());
 const modes = [
   [mode0, 'Image gallery'],
@@ -24,7 +36,7 @@ const modes = [
 ]
 let target // graphics object at full size
 
-function preload() {
+sketch.preload = () => {
   // Load consistently-named images into an array
   for (let i = 0; i < 6; i++) {
     images[i] = loadImage("uploads/trees" + i + ".jpg");
@@ -39,7 +51,7 @@ function preload() {
 }
 
 
-function setup() {
+sketch.setup = () => {
   displayCanvas = createCanvas(500, 500);
   displayCanvas.drop(handleFile);
   target = createGraphics(1000, 1000)
@@ -113,6 +125,7 @@ function setupButtons() {
 
   // A list of mode buttons
   for (let n = 0; n < 10; n++) {
+    let modeBtn
     if (n == 0) {
       modeBtn = createButton('original');
     } else {
@@ -153,7 +166,7 @@ function setupButtons() {
   resetBtn.hide();
 }
 
-function draw() {
+sketch.draw = () => {
   background(0);
 
   // Check if user has supplied photos
@@ -166,7 +179,7 @@ function draw() {
   random(sounds).play();
 }
 
-function keyTyped() {
+sketch.keyTyped = () => {
   if (key === "s") {
     download()
   } else if (key === "b") {
@@ -183,11 +196,20 @@ function keyTyped() {
   } else if (key === "p") {
     probFactor = (probFactor + 0.1) % 1
   } else if (key === "t") {
-    thickness = (thickness + 1) % 10
+    thickness = (thickness + 1) % 20
+  } else if (key === "m") {
+    config.mondrianStripes = !config.mondrianStripes
+    actionSound.play();
+  } else if (key === "l") {
+    mondrianProb = (mondrianProb + 0.1) % 1
+  } else if (key === "z") {
+    config.mondrianTileSize = ((config.mondrianTileSize + 25) % 1000) + 25
+    console.log(config.mondrianTileSize)
   } else if ('0123456789'.includes(key)) {
     modes[key][0]()
   } else if (key === '`') {
-    for(let i = 0; i < 10; i++) {
+    frameRate(5)
+    for(let i = 0; i < 30; i++) {
       modes[7][0]()
       // I "solved" this problem by using a custom library - see polychrometext
       download()
@@ -244,12 +266,17 @@ function clearUploads() {
   dropFiles();
 }
 
+const saver = (canvas, name) => {
+  canvas.toBlob(blob => saveAs(blob, name))
+}
+
 
 // Download current canvas
 function download() {
   // actionSound.play();
   const name = namer() + '.png'
-  save(target, name)
+  saver(target.drawingContext.canvas, name)
+  // save(target, name)
   console.log('downloaded ' + name)
 }
 
@@ -265,7 +292,7 @@ function mode0() {
   let i = 0;
   for (let gridY = 0; gridY < tileCountY; gridY++) {
     for (let gridX = 0; gridX < tileCountX; gridX++) {
-      tmp = images[i].get();
+      const tmp = images[i].get();
       tmp.resize(0, tileHeight);
       image(tmp, gridX * tileWidth, gridY * tileHeight);
       if (i == images.length - 1) {
@@ -322,10 +349,10 @@ function mode2() {
   target.image(random(images), 0, 0)
   for (let i = 0; i < 200; i++) {
     img = random(images);
-    stripX = random(img.width);
-    stripY = random(img.height);
-    stripW = random(50, 150);
-    stripH = random(50, 150);
+    let stripX = random(img.width);
+    let stripY = random(img.height);
+    let stripW = random(50, 150);
+    let stripH = random(50, 150);
     let strip = img.get(stripX, stripY, stripW, stripH);
     target.image(strip, stripX, stripY);
   }
@@ -369,10 +396,10 @@ function mode4() {
   target.noStroke();
   for (let i = 0; i < 900; i++) {
     img = random(images);
-    stripX = random(img.width);
-    stripY = random(img.height);
-    stripW = random(20, 30);
-    stripH = random(20, 30);
+    let stripX = random(img.width);
+    let stripY = random(img.height);
+    let stripW = random(20, 30);
+    let stripH = random(20, 30);
     if (random(0, 1) > 0.6) {
       let c = img.get(stripX, stripY);
       target.fill(c);
@@ -397,10 +424,10 @@ function mode5() {
 
   for (let i = 0; i < 1500; i++) {
     img = random(images);
-    stripX = random(img.width);
-    stripY = random(img.height);
-    stripW = random(5, 30);
-    stripH = random(5, 30);
+    let stripX = random(img.width);
+    let stripY = random(img.height);
+    let stripW = random(5, 30);
+    let stripH = random(5, 30);
 
     let c = img.get(stripX, stripY);
     target.fill(c);
@@ -446,13 +473,12 @@ function mode6() {
   random(sounds).play();
 }
 
-
 // Mondrian stripes
 function mode7() {
   target.noStroke();
   mondrian(target.width - thickness, target.height - thickness,
-    thickness / 2, thickness / 2, 1.0, (random(2) < 1));
-  target.filter(DILATE);
+    thickness / 2, thickness / 2, 1, (random(2) < 1));
+  // target.filter(DILATE);
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play();
 }
@@ -461,20 +487,19 @@ function mode7() {
 // Horizontally stretched
 function mode8() {
   target.noStroke();
-  // Create a background
-  bg = random(images);
+  const backGrnd = random(images);
   for (let j = 0; j < target.height; j += 5) {
-    let c = bg.get(target.width / 2, j);
+    let c = backGrnd.get(target.width / 2, j);
     target.fill(c);
     target.rect(0, j, target.width, 5);
   }
 
   for (let i = 0; i < 200; i++) {
     img = random(images);
-    stripX = random(img.width);
-    stripY = random(img.height);
-    stripW = random(50, 150);
-    stripH = random(50, 150);
+    let stripX = random(img.width);
+    let stripY = random(img.height);
+    let stripW = random(50, 150);
+    let stripH = random(50, 150);
 
     for (let j = 0; j < stripH; j++) {
       let c = img.get(stripX, stripY + j);
@@ -497,11 +522,11 @@ function mode9() {
 
   for (let i = 0; i < 450; i++) {
     img = random(images);
-    X = random(target.width);
-    Y = random(target.height);
-    R = random(5, 200);
-    interval = int(random(4, 10));
-    numColors = int(random(1, 3));
+    let X = random(target.width);
+    let Y = random(target.height);
+    let R = random(5, 200);
+    let interval = int(random(4, 10));
+    let numColors = int(random(1, 3));
     target.strokeWeight(int(random(1, 3)));
 
     // Color palette
@@ -535,13 +560,18 @@ function mode9() {
 // Draw mondrian-style grid of collages
 function mondrian(w, h, x, y, prob, vertical) {
   // Recursion calls: Divide again
-  if (random(1) < prob) {
+  let flip = random(1) < prob
+  const factor = {
+    low: 0.5,
+    high: 0.9
+  }
+  if (flip) {
     if (vertical) {
-      var wDivision = floor(random(w * 0.3, w * 0.7));
+      var wDivision = floor(random(w * factor.low, w * factor.high));
       mondrian(wDivision, h, x, y, prob * probFactor, false);
       mondrian(w - wDivision, h, x + wDivision, y, prob * probFactor, false);
     } else {
-      var hDivision = floor(random(h * 0.3, h * 0.7));
+      var hDivision = floor(random(h * factor.low, h * factor.high));
       mondrian(w, hDivision, x, y, prob * probFactor, true);
       mondrian(w, h - hDivision, x, y + hDivision, prob * probFactor, true);
     }
@@ -554,19 +584,18 @@ function mondrian(w, h, x, y, prob, vertical) {
     let tileHeight = max(h - thickness, 0);
     let tileWidth = max(w - thickness, 0);
 
-    if (tileWidth > 100 || tileHeight > 100) {
+    if  (config.mondrianStripes && (tileWidth > config.mondrianTileSize || tileHeight > config.mondrianTileSize)) {
       // Draw horizontal stripes
       if (random(1) > 0.5) {
-        for (j = 0; j < tileHeight; j++) {
+        for (let j = 0; j < tileHeight; j++) {
           let c = img.get(x + thickness / 2, y + thickness / 2 + j);
           target.fill(c);
           target.rect(x + thickness / 2, y + thickness / 2 + j, tileWidth, 1);
         }
       }
-
       // Draw vertical strips
       else {
-        for (j = 0; j < tileWidth; j++) {
+        for (let j = 0; j < tileWidth; j++) {
           let c = img.get(x + thickness / 2 + j, y + thickness / 2);
           target.fill(c);
           target.rect(x + thickness / 2 + j, y + thickness / 2, 1, tileHeight);
