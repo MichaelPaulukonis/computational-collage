@@ -1,37 +1,45 @@
 export class CollageImage {
-  constructor (img, cropped) {
-    this.original = img
-    this.cropped = cropped
+  constructor (img = null, cropped = null) {
+    this.orig = img
+    this.cropd = cropped
   }
 
   get cropped () {
-    return this.cropped
+    return this.cropd
   }
 
   set cropped (cropped) {
-    this.cropped = cropped
+    this.cropd = cropped
   }
 
   get original () {
-    return this.original
+    return this.orig
   }
 
   set original (original) {
-    this.original = original
+    this.orig = original
   }
 }
 
 // storage of CollageImage[]
 export class Images {
   constructor (images = []) {
-    this.images = images
+    this.imgs = images
+  }
+
+  get images () {
+    return this.imgs
   }
 
   get random () {
-    return this.images[Math.floor(Math.random() * this.images.length)]
+    return this.imgs[Math.floor(Math.random() * this.imgs.length)]
   }
 
   addImage (collageImg) {
-    this.images.push(collageImg)
+    this.imgs.push(collageImg)
+  }
+
+  clear () {
+    this.imgs = []
   }
 }

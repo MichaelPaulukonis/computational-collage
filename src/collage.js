@@ -8,6 +8,7 @@ import { CollageImage, Images } from './images'
 const sounds = [] // array for sound effects
 let actionSound // Sound for actions inclu save, blend & clear uploads
 let images = [] // array for source images
+let cimages = new Images()
 const userUploads = [] // buffer array for storing user uploads
 let isUploads = false // Initial boolean value of user load status
 let isHorizontal = true // Initial boolean value of pattern direction
@@ -59,8 +60,11 @@ sketch.setup = () => {
   setupButtons()
 
   for (let i = 0, n = images.length; i < n; i++) {
-    images[i] = squareCrop(images[i])
-    images[i].resize(target.width, 0)
+    // images[i] = squareCrop(images[i])
+    // images[i].resize(target.width, 0)
+    let croppedImg = squareCrop(images[i])
+    croppedImg.resize(target.width, 0)
+    cimages.addImage(new CollageImage(images[i], croppedImg))
   }
 
   noLoop()
@@ -251,10 +255,11 @@ function handleFile (file) {
     images.length = 0
     isUploads = true
     loadImage(file.data, img => {
-      img = squareCrop(img)
-      img.resize(target.width, 0)
-      userUploads.push(img)
-      images = [...userUploads]
+      let croppedImg = squareCrop(img)
+      croppedImg.resize(target.width, 0)
+      cimages.addImage(new CollageImage(img, croppedImg))
+      // userUploads.push(img)
+      // images = [...userUploads]
       sketch.draw()
     })
   } else {
@@ -266,12 +271,7 @@ function handleFile (file) {
 function clearUploads () {
   userUploads.length = 0
   images.length = 0
-  for (let i = 0; i < 6; i++) {
-    images[i] = loadImage('uploads/trees' + i + '.jpg', img => {
-      img = squareCrop(img)
-      img.resize(displayCanvas.width, 0)
-    })
-  }
+  cimages.clear()
   isUploads = false
   clearBtn.hide()
   uploadBtn.show()
@@ -288,7 +288,6 @@ function download () {
   // actionSound.play();
   const name = namer() + '.png'
   saver(target.drawingContext.canvas, name)
-  // save(target, name)
   console.log('downloaded ' + name)
 }
 
@@ -303,10 +302,10 @@ function mode0 () {
   let i = 0
   for (let gridY = 0; gridY < tileCountY; gridY++) {
     for (let gridX = 0; gridX < tileCountX; gridX++) {
-      const tmp = images[i].get()
+      const tmp = cimages.images[i].cropped.get()
       tmp.resize(0, tileHeight)
       image(tmp, gridX * tileWidth, gridY * tileHeight)
-      if (i === images.length - 1) {
+      if (i === cimages.images.length - 1) {
         i = 0
       } else {
         i++
@@ -321,7 +320,7 @@ function mode0 () {
 function mode1 () {
   if (isHorizontal) {
     for (let y = 0; y < target.height; y += 10) {
-      img = random(images)
+      img = cimages.random.cropped
 
       // pick a y point to get the strip
       const stripYPosition = int(random(0, img.height - 10))
@@ -335,7 +334,7 @@ function mode1 () {
   } else {
     // Toggle to vertical
     for (let x = 0; x < target.width; x += 10) {
-      img = random(images)
+      cimages.random.cropped
 
       // pick a x point to get the strip
       const stripXPosition = int(random(0, img.width - 10))
@@ -353,9 +352,10 @@ function mode1 () {
 
 // Collaging random chunks
 function mode2 () {
-  target.image(random(images), 0, 0)
+  target.image(cimages.random.cropped, 0, 0)
+
   for (let i = 0; i < 200; i++) {
-    img = random(images)
+    img = cimages.random.cropped
     const stripX = random(img.width)
     const stripY = random(img.height)
     const stripW = random(50, 150)
@@ -381,7 +381,7 @@ function mode3 () {
 
   for (let gridY = 0; gridY < tileCountY; gridY++) {
     for (let gridX = 0; gridX < tileCountX; gridX++) {
-      img = random(images)
+      img = cimages.random.cropped
 
       for (let j = 0; j < tileHeight; j++) {
         const c = img.get(gridX * tileWidth, gridY * tileHeight + j)
@@ -400,7 +400,8 @@ function mode4 () {
   target.rect(0, 0, target.width, target.height)
   target.noStroke()
   for (let i = 0; i < 900; i++) {
-    img = random(images)
+    img = cimages.random.cropped
+
     const stripX = random(img.width)
     const stripY = random(img.height)
     const stripW = random(20, 30)
@@ -421,13 +422,15 @@ function mode4 () {
 // Floating rounded rectangular splashes
 function mode5 () {
   target.noStroke()
-  img = random(images)
+  img = cimages.random.cropped
+
   const c = img.get(target.width / 2, target.height / 2)
   target.fill(c)
   target.rect(0, 0, target.width, target.height)
 
   for (let i = 0; i < 1500; i++) {
-    img = random(images)
+    img = cimages.random.cropped
+
     const stripX = random(img.width)
     const stripY = random(img.height)
     const stripW = random(5, 30)
@@ -452,7 +455,7 @@ function mode6 () {
     while (x < target.width) {
       const tileWidth = random(15, 40)
       const y = gridY * tileHeight
-      img = random(images)
+      img = cimages.random.cropped
 
       // Base grid tile
       target.rect(x, y, tileWidth, tileHeight)
@@ -498,7 +501,8 @@ function mode7 () {
 // Horizontally stretched
 function mode8 () {
   target.noStroke()
-  const backGrnd = random(images)
+  const backGrnd = cimages.random.cropped
+
   for (let j = 0; j < target.height; j += 5) {
     const c = backGrnd.get(target.width / 2, j)
     target.fill(c)
@@ -506,7 +510,8 @@ function mode8 () {
   }
 
   for (let i = 0; i < 200; i++) {
-    img = random(images)
+    img = cimages.random.cropped
+
     const stripX = random(img.width)
     const stripY = random(img.height)
     const stripW = random(50, 150)
@@ -532,7 +537,8 @@ function mode9 () {
   target.blendMode(LIGHTEST)
 
   for (let i = 0; i < 450; i++) {
-    img = random(images)
+    img = cimages.random.cropped
+
     const X = random(target.width)
     const Y = random(target.height)
     const R = random(5, 200)
@@ -591,8 +597,7 @@ function mondrian (w, h, x, y, prob, vertical) {
     }
   } else {
     // Base case: Draw rectangle
-    img = random(images)
-
+    img = cimages.random.cropped
     const tileHeight = max(h - thickness, 0)
     const tileWidth = max(w - thickness, 0)
 
@@ -632,7 +637,7 @@ function mondrian (w, h, x, y, prob, vertical) {
 
 // Reset default blend mode
 function resetBlend () {
-  blendMode(BLEND)
+  target.blendMode(BLEND)
   isBlended = false
   resetBtn.hide()
   blendBtn.show()
@@ -641,7 +646,7 @@ function resetBlend () {
 
 // Set to Lightest image blend mode
 function blendLightest () {
-  blendMode(LIGHTEST)
+  target.blendMode(LIGHTEST)
   isBlended = true
   resetBtn.show()
   blendBtn.hide()
