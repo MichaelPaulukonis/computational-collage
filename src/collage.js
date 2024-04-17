@@ -20,7 +20,8 @@ let displayCanvas // canvas
 let mondrianProb = 1.2
 const config = {
   mondrianStripes: false,
-  mondrianTileSize: 50
+  mondrianTileSize: 50,
+  lastMode: null
 }
 let uploadBtn, downloadBtn, clearBtn, blendBtn, resetBtn
 let namer = filenamer(datestring())
@@ -73,22 +74,32 @@ sketch.setup = () => {
 const squareCrop = img => {
   const w = img.width
   const h = img.height
-  const min = Math.min(w, h)
+  let min = Math.min(w, h)
   let x, y
 
-  if (random(1) < 0.3) {
-    // center strategy
-    x = (w - min) / 2
-    y = (h - min) / 2
-  } else if (random(1) < 0.3) {
-    // top left strategy
-    x = 0
-    y = 0
-  } else {
-    // bottom right strategy
-    x = w - min
-    y = h - min
-  }
+  // if (random(1) < 0.3) {
+  //   // center strategy
+  //   x = (w - min) / 2
+  //   y = (h - min) / 2
+  // } else if (random(1) < 0.3) {
+  //   // top left strategy
+  //   x = 0
+  //   y = 0
+  // } else {
+  //   // bottom right strategy
+  //   x = w - min
+  //   y = h - min
+  // }
+  // if the size is > threshold
+  // min can be smaller - so we're not always grabbing a full side
+  if (min > 500) { min = min - random(0, min - 500) }
+  x = random(0, w - min)
+  y = random(0, h - min)
+/**
+ * x is random(0, w-min)
+ * y is random(0, h-min)
+ * 
+ */
 
   return img.get(x, y, min, min)
 }
@@ -223,9 +234,11 @@ sketch.keyTyped = () => {
   } else if ('0123456789'.includes(key)) {
     modes[key][0]()
   } else if (key === '`') {
+    if (config.lastMode === null) return false
     frameRate(5)
     for (let i = 0; i < 30; i++) {
-      modes[7][0]()
+      config.lastMode()
+      // modes[7][0]()
       // I "solved" this problem by using a custom library - see polychrometext
       download()
       console.log(`saved collage ${i}`)
@@ -293,6 +306,7 @@ function download () {
 
 // Show input image gallery (no more than 9 for speed)
 function mode0 () {
+  config.lastMode = mode0
   const tileCountX = 3
   const tileCountY = 3
 
@@ -318,6 +332,7 @@ function mode0 () {
 
 // Full-length strips
 function mode1 () {
+  config.lastMode = mode1
   if (isHorizontal) {
     for (let y = 0; y < target.height; y += 10) {
       img = cimages.random.cropped
@@ -352,14 +367,16 @@ function mode1 () {
 
 // Collaging random chunks
 function mode2 () {
+  config.lastMode = mode2
+
   target.image(cimages.random.cropped, 0, 0)
 
   for (let i = 0; i < 200; i++) {
     img = cimages.random.cropped
     const stripX = random(img.width)
     const stripY = random(img.height)
-    const stripW = random(50, 150)
-    const stripH = random(50, 150)
+    const stripW = random(100, 1000)
+    const stripH = random(100, 1000)
     const strip = img.get(stripX, stripY, stripW, stripH)
     target.image(strip, stripX, stripY)
   }
@@ -372,6 +389,8 @@ function mode2 () {
 
 // Regular grid of stretched pixels
 function mode3 () {
+  config.lastMode = mode3
+
   target.noStroke()
   const tileHeight = 20
   const tileWidth = random(20, 50)
@@ -396,6 +415,7 @@ function mode3 () {
 
 // Floating pixels
 function mode4 () {
+  config.lastMode = mode4
   target.fill(0)
   target.rect(0, 0, target.width, target.height)
   target.noStroke()
@@ -404,9 +424,9 @@ function mode4 () {
 
     const stripX = random(img.width)
     const stripY = random(img.height)
-    const stripW = random(20, 30)
-    const stripH = random(20, 30)
-    if (random(0, 1) > 0.6) {
+    const stripW = random(40, 50)
+    const stripH = random(40, 50)
+    if (random(0, 1) > 0.3) {
       const c = img.get(stripX, stripY)
       target.fill(c)
       target.rect(stripX, stripY, stripW, stripH)
@@ -421,6 +441,7 @@ function mode4 () {
 
 // Floating rounded rectangular splashes
 function mode5 () {
+  config.lastMode = mode5
   target.noStroke()
   img = cimages.random.cropped
 
@@ -446,6 +467,7 @@ function mode5 () {
 
 // Horizontal free strips
 function mode6 () {
+  config.lastMode = mode6
   target.noStroke()
   const tileHeight = 5
   const tileCountY = target.height / tileHeight
@@ -482,9 +504,12 @@ function mode6 () {
   random(sounds).play()
 }
 
+let counter = 0
 // Mondrian stripes
 function mode7 () {
+  config.lastMode = mode7
   target.noStroke()
+  counter = 0
   mondrian(
     target.width - thickness,
     target.height - thickness,
@@ -494,12 +519,14 @@ function mode7 () {
     random(2) < 1
   )
   // target.filter(DILATE);
+  console.log(`called Mondrian ${counter} times`)
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play()
 }
 
 // Horizontally stretched
 function mode8 () {
+  config.lastMode = mode8
   target.noStroke()
   const backGrnd = cimages.random.cropped
 
@@ -530,6 +557,7 @@ function mode8 () {
 
 // Concentric circle splashes
 function mode9 () {
+  config.lastMode = mode9
   target.fill(0)
   target.noStroke()
   target.rect(0, 0, target.width, target.height)
@@ -579,13 +607,15 @@ function mode9 () {
 
 // Draw mondrian-style grid of collages
 function mondrian (w, h, x, y, prob, vertical) {
+  counter++
+  console.log(w, h, x, y)
   // Recursion calls: Divide again
-  const flip = random(1) < prob
+  const coinFlip = random(1) < prob
   const factor = {
     low: 0.1,
     high: 0.5
   }
-  if (flip) {
+  if (coinFlip) {
     if (vertical) {
       const wDivision = floor(random(w * factor.low, w * factor.high))
       mondrian(wDivision, h, x, y, prob * probFactor, false)

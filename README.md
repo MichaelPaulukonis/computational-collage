@@ -1,4 +1,20 @@
 # Computational Collage
+
+
+## roadmap
+
+- more like my stuff
+  - hah! what does THAT mean ?!?!?
+- play with blending modes
+- bigger image fragments overlayed
+- "mondrian" mode takes from semi-random part of (original) image
+-   
+
+
+## Original notes 
+
+From < https://github.com/zhixin-lin/computational-collage.git>
+
 A Web-based Generative Collage Tool That Breathes New Life Into One’s Photo Collections
 
 
@@ -10,3 +26,5 @@ The project is live at: https://www.openprocessing.org/sketch/1043711
 Learn more about the project at: https://www.zhixinlin.com/computational-collage
 
 Developed by Zhixin Lin
+
+### There have been significant changes since the original
