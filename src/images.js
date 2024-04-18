@@ -19,6 +19,12 @@ export class CollageImage {
   set original (original) {
     this.orig = original
   }
+
+  get clone () {
+    const tOrig = this.orig.get()
+    const tCrop = this.cropd.get()
+    return new CollageImage(tOrig, tCrop)
+  }
 }
 
 // storage of CollageImage[]

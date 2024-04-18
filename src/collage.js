@@ -14,13 +14,13 @@ let isUploads = false // Initial boolean value of user load status
 let isHorizontal = true // Initial boolean value of pattern direction
 let isBlended = false // Initial bool value of the image blending status
 let img // singel image buffer
-let probFactor = 0.9 // mondrian division probability factor
+let probFactor = 0.7 // mondrian division probability factor
 let thickness = 0 // mondrian grid thickness
 let displayCanvas // canvas
 let mondrianProb = 1.2
 const config = {
   mondrianStripes: false,
-  mondrianTileSize: 50,
+  mondrianTileSize: 400,
   lastMode: null
 }
 let uploadBtn, downloadBtn, clearBtn, blendBtn, resetBtn
@@ -61,8 +61,6 @@ sketch.setup = () => {
   setupButtons()
 
   for (let i = 0, n = images.length; i < n; i++) {
-    // images[i] = squareCrop(images[i])
-    // images[i].resize(target.width, 0)
     let croppedImg = squareCrop(images[i])
     croppedImg.resize(target.width, 0)
     cimages.addImage(new CollageImage(images[i], croppedImg))
@@ -215,12 +213,15 @@ sketch.keyTyped = () => {
   } else if (key === 'c') {
     clearUploads()
     namer = filenamer(datestring())
+  } else if (key === 'd') {
+    duplicateRecrop()
   } else if (key === 'u') {
     dropFiles()
   } else if (key === 'h') {
     isHorizontal = !isHorizontal
   } else if (key === 'p') {
-    probFactor = (probFactor + 0.1) % 1
+    probFactor = +((probFactor - 0.1 + 0.9) % 0.9).toFixed(1)
+    probFactor = probFactor === 0 ? 0.9 : probFactor
   } else if (key === 't') {
     thickness = (thickness + 1) % 20
   } else if (key === 'm') {
@@ -238,8 +239,9 @@ sketch.keyTyped = () => {
     frameRate(5)
     for (let i = 0; i < 30; i++) {
       config.lastMode()
-      // modes[7][0]()
+      // repeated saves don't work so well - I get 18/20 or worse.
       // I "solved" this problem by using a custom library - see polychrometext
+      // except it still doesn't work, here. Something else must have come into play.
       download()
       console.log(`saved collage ${i}`)
     }
@@ -265,14 +267,11 @@ function dropFiles () {
 // Handle file uploads
 function handleFile (file) {
   if (file.type === 'image') {
-    images.length = 0
     isUploads = true
     loadImage(file.data, img => {
       let croppedImg = squareCrop(img)
       croppedImg.resize(target.width, 0)
       cimages.addImage(new CollageImage(img, croppedImg))
-      // userUploads.push(img)
-      // images = [...userUploads]
       sketch.draw()
     })
   } else {
@@ -280,10 +279,18 @@ function handleFile (file) {
   }
 }
 
+
+const duplicateRecrop = () => {
+  const cloned = cimages.images[cimages.images.length - 1].clone
+  cloned.cropped = squareCrop(cloned.original)
+  cloned.cropped.resize(target.width, 0)
+  cimages.addImage(cloned)
+  mode0()
+}
+
 // Clear upload files
 function clearUploads () {
   userUploads.length = 0
-  images.length = 0
   cimages.clear()
   isUploads = false
   clearBtn.hide()
@@ -319,11 +326,7 @@ function mode0 () {
       const tmp = cimages.images[i].cropped.get()
       tmp.resize(0, tileHeight)
       image(tmp, gridX * tileWidth, gridY * tileHeight)
-      if (i === cimages.images.length - 1) {
-        i = 0
-      } else {
-        i++
-      }
+      i = (i + 1) % cimages.images.length
     }
   }
 
@@ -606,14 +609,14 @@ function mode9 () {
 }
 
 // Draw mondrian-style grid of collages
+// may have originally been based on https://github.com/ronikaufman/mondrian_generator/blob/master/mondrian_generator.pde
 function mondrian (w, h, x, y, prob, vertical) {
   counter++
-  console.log(w, h, x, y)
   // Recursion calls: Divide again
   const coinFlip = random(1) < prob
   const factor = {
-    low: 0.1,
-    high: 0.5
+    low: 0.3,
+    high: 0.7
   }
   if (coinFlip) {
     if (vertical) {
