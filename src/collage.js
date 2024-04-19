@@ -21,7 +21,10 @@ let mondrianProb = 1.2
 const config = {
   mondrianStripes: false,
   mondrianTileSize: 400,
-  lastMode: null
+  lastMode: null,
+  stripeSize: 2,
+  outline: false,
+  circle: false
 }
 let uploadBtn, downloadBtn, clearBtn, blendBtn, resetBtn
 let namer = filenamer(datestring())
@@ -206,6 +209,8 @@ sketch.draw = () => {
 sketch.keyTyped = () => {
   if (key === 's') {
     download()
+  } else if (key === 'a') {
+    config.circle = !config.circle
   } else if (key === 'b') {
     blendLightest()
   } else if (key === 'r') {
@@ -217,6 +222,8 @@ sketch.keyTyped = () => {
     duplicateRecrop()
   } else if (key === 'u') {
     dropFiles()
+  } else if (key === 'o') {
+    config.outline = !config.outline
   } else if (key === 'h') {
     isHorizontal = !isHorizontal
   } else if (key === 'p') {
@@ -227,6 +234,8 @@ sketch.keyTyped = () => {
   } else if (key === 'm') {
     config.mondrianStripes = !config.mondrianStripes
     actionSound.play()
+  } else if (key === 'n') {
+    config.stripeSize += 1 % 20
   } else if (key === 'l') {
     mondrianProb = (mondrianProb + 0.1) % 1
   } else if (key === 'z') {
@@ -369,6 +378,9 @@ function mode1 () {
 }
 
 // Collaging random chunks
+// NOTE: circle mode ignores the upper left
+// it would have to select areas "outside" the box to not ignore it
+// Do I have this problem in the other app?
 function mode2 () {
   config.lastMode = mode2
 
@@ -381,6 +393,23 @@ function mode2 () {
     const stripW = random(100, 1000)
     const stripH = random(100, 1000)
     const strip = img.get(stripX, stripY, stripW, stripH)
+    if (config.outline) {
+      target.strokeWeight(50)
+      target.stroke('black')
+      target.noFill()
+      target.blendMode('source-over')
+      if (config.circle) {
+        let customMask = createGraphics(stripW, stripH)
+        customMask.noStroke()
+        customMask.fill(255)
+        customMask.circle(stripW / 2, stripH / 2, Math.min(stripH, stripW))
+        strip.mask(customMask)
+        target.circle(stripX + stripW / 2, stripY + stripH / 2, Math.min(stripH, stripW))
+      } else {
+        target.rect(stripX, stripY, stripW, stripH)
+      }
+      target.strokeWeight(0)
+    }
     target.image(strip, stripX, stripY)
   }
   // filter(ERODE);
@@ -608,16 +637,17 @@ function mode9 () {
   sounds[3].play()
 }
 
+const factor = {
+  low: 0.3,
+  high: 0.7
+}
+
 // Draw mondrian-style grid of collages
 // may have originally been based on https://github.com/ronikaufman/mondrian_generator/blob/master/mondrian_generator.pde
 function mondrian (w, h, x, y, prob, vertical) {
   counter++
-  // Recursion calls: Divide again
+  // Recursion calls: Divide againv
   const coinFlip = random(1) < prob
-  const factor = {
-    low: 0.3,
-    high: 0.7
-  }
   if (coinFlip) {
     if (vertical) {
       const wDivision = floor(random(w * factor.low, w * factor.high))
@@ -641,17 +671,17 @@ function mondrian (w, h, x, y, prob, vertical) {
     ) {
       // Draw horizontal stripes
       if (random(1) > 0.5) {
-        for (let j = 0; j < tileHeight; j++) {
+        for (let j = 0; j < tileHeight; j += config.stripeSize) {
           const c = img.get(x + thickness / 2, y + thickness / 2 + j)
           target.fill(c)
-          target.rect(x + thickness / 2, y + thickness / 2 + j, tileWidth, 1)
+          target.rect(x + thickness / 2, y + thickness / 2 + j, tileWidth, config.stripeSize)
         }
       } else {
         // Draw vertical strips
-        for (let j = 0; j < tileWidth; j++) {
+        for (let j = 0; j < tileWidth; j += config.stripeSize) {
           const c = img.get(x + thickness / 2 + j, y + thickness / 2)
           target.fill(c)
-          target.rect(x + thickness / 2 + j, y + thickness / 2, 1, tileHeight)
+          target.rect(x + thickness / 2 + j, y + thickness / 2, config.stripeSize, tileHeight)
         }
       }
     } else {
