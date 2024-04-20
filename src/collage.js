@@ -1,5 +1,6 @@
 import saveAs from 'file-saver'
 import '../css/collage.style.css'
+import { Pane } from 'tweakpane'
 import { sketch } from 'p5js-wrapper'
 import 'p5js-wrapper/sound'
 import { datestring, filenamer } from './filelib'
@@ -18,13 +19,21 @@ let probFactor = 0.7 // mondrian division probability factor
 let thickness = 0 // mondrian grid thickness
 let displayCanvas // canvas
 let mondrianProb = 1.2
+
 const config = {
   mondrianStripes: false,
   mondrianTileSize: 400,
   lastMode: null,
-  stripeSize: 2,
+  stripeSize: 1,
   outline: false,
-  circle: false
+  circle: false,
+  outlineWeight: 50,
+  stripMin: 100,
+  stripMax: 1000,
+  stripCount: 100,
+  probFactor: 0.7,
+  thickness: 0,
+  mondrianProb: 1.2
 }
 let uploadBtn, downloadBtn, clearBtn, blendBtn, resetBtn
 let namer = filenamer(datestring())
@@ -41,6 +50,7 @@ const modes = [
   [mode9, 'Concentric circle splashes']
 ]
 let target // graphics object at full size
+const pane = new Pane()
 
 sketch.preload = () => {
   // Load consistently-named images into an array
@@ -62,6 +72,17 @@ sketch.setup = () => {
   target = createGraphics(1000, 1000)
 
   setupButtons()
+
+  pane.addBinding(config, 'mondrianStripes')
+  pane.addBinding(config, 'mondrianTileSize', { min: 100, max: 1000, step: 50 })
+  pane.addBinding(config, 'stripeSize', { min: 1, max: 50, step: 1})
+  pane.addBinding(config, 'outline')
+  pane.addBinding(config, 'circle')
+  pane.addBinding(config, 'outlineWeight', { min: 1, max: 200, step: 1})  
+  pane.addBinding(config, 'stripMin', { min: 50, max: 900, step: 25})
+  pane.addBinding(config, 'stripMax', { min: 100, max: 1000, step: 25})
+  pane.addBinding(config, 'stripCount', { min: 1, max: 200, step: 1})
+
 
   for (let i = 0, n = images.length; i < n; i++) {
     let croppedImg = squareCrop(images[i])
@@ -93,14 +114,16 @@ const squareCrop = img => {
   // }
   // if the size is > threshold
   // min can be smaller - so we're not always grabbing a full side
-  if (min > 500) { min = min - random(0, min - 500) }
+  if (min > 500) {
+    min = min - random(0, min - 500)
+  }
   x = random(0, w - min)
   y = random(0, h - min)
-/**
- * x is random(0, w-min)
- * y is random(0, h-min)
- * 
- */
+  /**
+   * x is random(0, w-min)
+   * y is random(0, h-min)
+   *
+   */
 
   return img.get(x, y, min, min)
 }
@@ -288,7 +311,6 @@ function handleFile (file) {
   }
 }
 
-
 const duplicateRecrop = () => {
   const cloned = cimages.images[cimages.images.length - 1].clone
   cloned.cropped = squareCrop(cloned.original)
@@ -385,35 +407,49 @@ function mode2 () {
   config.lastMode = mode2
 
   target.image(cimages.random.cropped, 0, 0)
+  if (config.outline) {
+    target.blendMode('source-over')
+    target.strokeWeight(config.outlineWeight)
+    target.stroke('black')
+    target.noFill()
+  }
 
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < config.stripCount; i++) {
     img = cimages.random.cropped
-    const stripX = random(img.width)
-    const stripY = random(img.height)
-    const stripW = random(100, 1000)
-    const stripH = random(100, 1000)
+    const stripW = random(config.stripMin, config.stripMax)
+    const stripH = random(config.stripMin, config.stripMax)
+    const stripX = random(stripW / -2, img.width)
+    const stripY = random(stripH / -2, img.height)
     const strip = img.get(stripX, stripY, stripW, stripH)
-    if (config.outline) {
-      target.strokeWeight(50)
-      target.stroke('black')
-      target.noFill()
-      target.blendMode('source-over')
-      if (config.circle) {
-        let customMask = createGraphics(stripW, stripH)
-        customMask.noStroke()
-        customMask.fill(255)
-        customMask.circle(stripW / 2, stripH / 2, Math.min(stripH, stripW))
-        strip.mask(customMask)
-        target.circle(stripX + stripW / 2, stripY + stripH / 2, Math.min(stripH, stripW))
-      } else {
-        target.rect(stripX, stripY, stripW, stripH)
-      }
-      target.strokeWeight(0)
+
+    if (config.circle) {
+      let customMask = createGraphics(stripW, stripH)
+      customMask.noStroke()
+      customMask.fill(255)
+      customMask.circle(stripW / 2, stripH / 2, Math.min(stripH, stripW))
+      strip.mask(customMask)
+      customMask.remove()
+      target.circle(
+        stripX + stripW / 2,
+        stripY + stripH / 2,
+        Math.min(stripH, stripW)
+      )
+    } else {
+      target.rect(stripX, stripY, stripW, stripH)
     }
     target.image(strip, stripX, stripY)
   }
+
+  if (config.outline) {
+    const inset = config.outlineWeight / 2
+    // target.rect(inset, inset, target.width - inset, target.height - inset)
+    target.rect(0, 0, target.width, target.height)
+
+  }
   // filter(ERODE);
   // filter(THRESHOLD, 0.4);
+  target.strokeWeight(0)
+
   target.filter(DILATE)
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play()
@@ -674,14 +710,24 @@ function mondrian (w, h, x, y, prob, vertical) {
         for (let j = 0; j < tileHeight; j += config.stripeSize) {
           const c = img.get(x + thickness / 2, y + thickness / 2 + j)
           target.fill(c)
-          target.rect(x + thickness / 2, y + thickness / 2 + j, tileWidth, config.stripeSize)
+          target.rect(
+            x + thickness / 2,
+            y + thickness / 2 + j,
+            tileWidth,
+            config.stripeSize
+          )
         }
       } else {
         // Draw vertical strips
         for (let j = 0; j < tileWidth; j += config.stripeSize) {
           const c = img.get(x + thickness / 2 + j, y + thickness / 2)
           target.fill(c)
-          target.rect(x + thickness / 2 + j, y + thickness / 2, config.stripeSize, tileHeight)
+          target.rect(
+            x + thickness / 2 + j,
+            y + thickness / 2,
+            config.stripeSize,
+            tileHeight
+          )
         }
       }
     } else {
