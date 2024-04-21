@@ -21,11 +21,11 @@ let displayCanvas // canvas
 let mondrianProb = 1.2
 
 const config = {
-  mondrianStripes: false,
+  mondrianStripes: true,
   mondrianTileSize: 400,
   lastMode: null,
   stripeSize: 1,
-  outline: false,
+  outline: true,
   circle: false,
   outlineWeight: 50,
   stripMin: 100,
@@ -33,7 +33,9 @@ const config = {
   stripCount: 100,
   probFactor: 0.7,
   thickness: 0,
-  mondrianProb: 1.2
+  mondrianProb: 1.2,
+  mondrianProbFactor: 0.7,
+  cropStrategy: 'CENTER'
 }
 let uploadBtn, downloadBtn, clearBtn, blendBtn, resetBtn
 let namer = filenamer(datestring())
@@ -49,6 +51,11 @@ const modes = [
   [mode8, 'Horizontally stretched'],
   [mode9, 'Concentric circle splashes']
 ]
+
+const cropStrategies = [
+  'CENTER', 'TOP-LEFT', 'BOTTOM-RIGHT', 'RANDOM'
+]
+
 let target // graphics object at full size
 const pane = new Pane()
 
@@ -76,13 +83,23 @@ sketch.setup = () => {
   pane.addBinding(config, 'mondrianStripes')
   pane.addBinding(config, 'mondrianTileSize', { min: 100, max: 1000, step: 50 })
   pane.addBinding(config, 'stripeSize', { min: 1, max: 50, step: 1})
+  pane.addBinding(config, 'mondrianProb', { min: 0.05, max: 2, step: 0.05})
+  pane.addBinding(config, 'probFactor', { min: 0.1, max: 0.95, step: 0.05})
+
   pane.addBinding(config, 'outline')
   pane.addBinding(config, 'circle')
   pane.addBinding(config, 'outlineWeight', { min: 1, max: 200, step: 1})  
   pane.addBinding(config, 'stripMin', { min: 50, max: 900, step: 25})
   pane.addBinding(config, 'stripMax', { min: 100, max: 1000, step: 25})
   pane.addBinding(config, 'stripCount', { min: 1, max: 200, step: 1})
-
+  pane.addBlade({
+    view: 'list',
+    label: 'cropping',
+    options: cropStrategies.map(strat => ({ text: strat, value: strat })),
+    value: cropStrategies[0]
+  }).on('change', ({ value }) => {
+    config.cropStrategy = value
+  })
 
   for (let i = 0, n = images.length; i < n; i++) {
     let croppedImg = squareCrop(images[i])
@@ -99,31 +116,27 @@ const squareCrop = img => {
   let min = Math.min(w, h)
   let x, y
 
-  // if (random(1) < 0.3) {
-  //   // center strategy
-  //   x = (w - min) / 2
-  //   y = (h - min) / 2
-  // } else if (random(1) < 0.3) {
-  //   // top left strategy
-  //   x = 0
-  //   y = 0
-  // } else {
-  //   // bottom right strategy
-  //   x = w - min
-  //   y = h - min
-  // }
-  // if the size is > threshold
-  // min can be smaller - so we're not always grabbing a full side
-  if (min > 500) {
-    min = min - random(0, min - 500)
-  }
-  x = random(0, w - min)
-  y = random(0, h - min)
-  /**
-   * x is random(0, w-min)
-   * y is random(0, h-min)
-   *
-   */
+  switch (config.cropStrategy) {
+    case 'CENTER':
+      x = (w - min) / 2
+      y = (h - min) / 2
+      break
+    case 'TOP-LEFT':
+      x = 0
+      y = 0
+      break
+    case 'BOTTOM-RIGHT':
+      x = w - min
+      y = h - min
+      break
+    case 'RANDOM':
+      if (min > 500) {
+        min = min - random(0, min - 500)
+      }
+      x = random(0, w - min)
+      y = random(0, h - min)
+      break
+    }
 
   return img.get(x, y, min, min)
 }
@@ -408,7 +421,7 @@ function mode2 () {
 
   target.image(cimages.random.cropped, 0, 0)
   if (config.outline) {
-    target.blendMode('source-over')
+    // target.blendMode('source-over')
     target.strokeWeight(config.outlineWeight)
     target.stroke('black')
     target.noFill()
@@ -441,10 +454,7 @@ function mode2 () {
   }
 
   if (config.outline) {
-    const inset = config.outlineWeight / 2
-    // target.rect(inset, inset, target.width - inset, target.height - inset)
     target.rect(0, 0, target.width, target.height)
-
   }
   // filter(ERODE);
   // filter(THRESHOLD, 0.4);
@@ -583,7 +593,7 @@ function mode7 () {
     target.height - thickness,
     thickness / 2,
     thickness / 2,
-    1,
+    config.mondrianProb,
     random(2) < 1
   )
   // target.filter(DILATE);
@@ -678,28 +688,51 @@ const factor = {
   high: 0.7
 }
 
+// wrapper
+function mondrian (w, h, x, y, prob, vertical) {
+
+  mondrianInner(w, h, x, y, prob, vertical)
+
+  if (config.outline) {
+    target.noFill()
+    target.strokeWeight(config.outlineWeight)
+    target.stroke('black')
+    target.rect(0, 0, target.width, target.height)
+    target.strokeWeight(0)
+  }
+}
+
 // Draw mondrian-style grid of collages
 // may have originally been based on https://github.com/ronikaufman/mondrian_generator/blob/master/mondrian_generator.pde
-function mondrian (w, h, x, y, prob, vertical) {
+// might be interesting to follow-up with some circles
+// positioned on lines and intersections
+// but we'd have to have knowledge of where lines had been drawn....
+function mondrianInner (w, h, x, y, prob, vertical) {
   counter++
   // Recursion calls: Divide againv
   const coinFlip = random(1) < prob
   if (coinFlip) {
     if (vertical) {
       const wDivision = floor(random(w * factor.low, w * factor.high))
-      mondrian(wDivision, h, x, y, prob * probFactor, false)
-      mondrian(w - wDivision, h, x + wDivision, y, prob * probFactor, false)
+      mondrianInner(wDivision, h, x, y, prob * config.mondrianProbFactor, false)
+      mondrianInner(w - wDivision, h, x + wDivision, y, prob * config.mondrianProbFactor, false)
     } else {
       const hDivision = floor(random(h * factor.low, h * factor.high))
-      mondrian(w, hDivision, x, y, prob * probFactor, true)
-      mondrian(w, h - hDivision, x, y + hDivision, prob * probFactor, true)
+      mondrianInner(w, hDivision, x, y, prob * config.mondrianProbFactor, true)
+      mondrianInner(w, h - hDivision, x, y + hDivision, prob * config.mondrianProbFactor, true)
     }
   } else {
     // Base case: Draw rectangle
     img = cimages.random.cropped
     const tileHeight = max(h - thickness, 0)
     const tileWidth = max(w - thickness, 0)
-
+    if (config.outline) {
+      target.stroke('black')
+      target.strokeWeight(config.outlineWeight)
+      target.noFill()
+      target.rect(x, y, tileWidth, tileHeight)
+    }
+    target.strokeWeight(0)
     if (
       config.mondrianStripes &&
       (tileWidth > config.mondrianTileSize ||
@@ -738,6 +771,7 @@ function mondrian (w, h, x, y, prob, vertical) {
         tileHeight
       )
       if (tileHeight !== 0 && tileWidth !== 0) {
+        target.rect(x + thickness / 2, y + thickness / 2, tileWidth, tileHeight)
         target.image(strip, x + thickness / 2, y + thickness / 2)
       }
     }
