@@ -325,10 +325,13 @@ function handleFile (file) {
 }
 
 const duplicateRecrop = () => {
+  const tempCropMode = config.cropStrategy
+  config.cropStrategy = 'RANDOM'
   const cloned = cimages.images[cimages.images.length - 1].clone
   cloned.cropped = squareCrop(cloned.original)
   cloned.cropped.resize(target.width, 0)
   cimages.addImage(cloned)
+  config.cropStrategy = tempCropMode
   mode0()
 }
 

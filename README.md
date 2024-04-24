@@ -8,8 +8,14 @@
 - play with blending modes
 - bigger image fragments overlayed
 - "mondrian" mode takes from semi-random part of (original) image
--   
+- Patterns in some of the blocks
+- outline variety?
+- animation of blocks coming and going
 
+## some things to look at
+
+- <https://github.com/antiboredom/p5.patgrad>
+- <https://github.com/SYM380/p5.pattern>
 
 ## Original notes 
 
