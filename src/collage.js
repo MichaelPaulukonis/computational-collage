@@ -3,6 +3,8 @@ import '../css/collage.style.css'
 import { Pane } from 'tweakpane'
 import { sketch } from 'p5js-wrapper'
 import 'p5js-wrapper/sound'
+import './p5.pattern.js'
+import { PTN } from  './p5.pattern.js'
 import { datestring, filenamer } from './filelib'
 import { CollageImage, Images } from './images'
 
@@ -10,6 +12,7 @@ const sounds = [] // array for sound effects
 let actionSound // Sound for actions inclu save, blend & clear uploads
 let images = [] // array for source images
 let cimages = new Images()
+let patImages = [] // patterns and solids
 const userUploads = [] // buffer array for storing user uploads
 let isUploads = false // Initial boolean value of user load status
 let isHorizontal = true // Initial boolean value of pattern direction
@@ -19,6 +22,9 @@ let probFactor = 0.7 // mondrian division probability factor
 let thickness = 0 // mondrian grid thickness
 let displayCanvas // canvas
 let mondrianProb = 1.2
+
+let COLS = createCols("https://coolors.co/bcf8ec-aed9e0-9fa0c3-8b687f-7b435b");
+let PALETTE;
 
 const config = {
   mondrianStripes: true,
@@ -52,9 +58,7 @@ const modes = [
   [mode9, 'Concentric circle splashes']
 ]
 
-const cropStrategies = [
-  'CENTER', 'TOP-LEFT', 'BOTTOM-RIGHT', 'RANDOM'
-]
+const cropStrategies = ['CENTER', 'TOP-LEFT', 'BOTTOM-RIGHT', 'RANDOM']
 
 let target // graphics object at full size
 const pane = new Pane()
@@ -82,24 +86,26 @@ sketch.setup = () => {
 
   pane.addBinding(config, 'mondrianStripes')
   pane.addBinding(config, 'mondrianTileSize', { min: 100, max: 1000, step: 50 })
-  pane.addBinding(config, 'stripeSize', { min: 1, max: 50, step: 1})
-  pane.addBinding(config, 'mondrianProb', { min: 0.05, max: 2, step: 0.05})
-  pane.addBinding(config, 'probFactor', { min: 0.1, max: 0.95, step: 0.05})
+  pane.addBinding(config, 'stripeSize', { min: 1, max: 50, step: 1 })
+  pane.addBinding(config, 'mondrianProb', { min: 0.05, max: 2, step: 0.05 })
+  pane.addBinding(config, 'probFactor', { min: 0.1, max: 0.95, step: 0.05 })
 
   pane.addBinding(config, 'outline')
   pane.addBinding(config, 'circle')
-  pane.addBinding(config, 'outlineWeight', { min: 1, max: 200, step: 1})  
-  pane.addBinding(config, 'stripMin', { min: 50, max: 900, step: 25})
-  pane.addBinding(config, 'stripMax', { min: 100, max: 1000, step: 25})
-  pane.addBinding(config, 'stripCount', { min: 1, max: 200, step: 1})
-  pane.addBlade({
-    view: 'list',
-    label: 'cropping',
-    options: cropStrategies.map(strat => ({ text: strat, value: strat })),
-    value: cropStrategies[0]
-  }).on('change', ({ value }) => {
-    config.cropStrategy = value
-  })
+  pane.addBinding(config, 'outlineWeight', { min: 1, max: 200, step: 1 })
+  pane.addBinding(config, 'stripMin', { min: 50, max: 900, step: 25 })
+  pane.addBinding(config, 'stripMax', { min: 100, max: 1000, step: 25 })
+  pane.addBinding(config, 'stripCount', { min: 1, max: 200, step: 1 })
+  pane
+    .addBlade({
+      view: 'list',
+      label: 'cropping',
+      options: cropStrategies.map(strat => ({ text: strat, value: strat })),
+      value: cropStrategies[0]
+    })
+    .on('change', ({ value }) => {
+      config.cropStrategy = value
+    })
 
   for (let i = 0, n = images.length; i < n; i++) {
     let croppedImg = squareCrop(images[i])
@@ -107,7 +113,67 @@ sketch.setup = () => {
     cimages.addImage(new CollageImage(images[i], croppedImg))
   }
 
+  patImages = makeSolids()
+
   noLoop()
+}
+
+function randPattern(t)
+{
+	const ptArr = [
+		PTN.noise(0.5),
+		PTN.noiseGrad(0.4),
+		// PTN.stripe(t / int(random(6, 12))),
+		// PTN.stripeCircle(t / int(random(6, 12))),
+		// PTN.stripePolygon(int(random(3, 7)),  int(random(6, 12))),
+		PTN.stripeRadial(TAU /  int(random(6, 30))),
+		// PTN.wave(t / int(random(1, 3)), t / int(random(10, 20)), t / 5, t / 10),
+		// PTN.dot(t / 10, t / 10 * random(0.2, 1)),
+		// PTN.checked(t / int(random(5, 20)), t / int(random(5, 20))),
+		// PTN.cross(t / int(random(10, 20)), t / int(random(20, 40))),
+		// PTN.triangle(t / int(random(5, 20)), t / int(random(5, 20)))
+	]
+	return random(ptArr);
+}
+
+const makeSolids = () => {
+  let solids = []
+  let colors = ['tomato', 'powderblue', 'yellowgreen', 'white', 'salmon', 'turquoise']
+  let temp = createGraphics(500, 500)
+  PALETTE = shuffle(COLS, true);
+
+  // solids = colors.map(color => {
+  //   temp.background(color)
+  //   let img = createImage(2000, 2000)
+  //   img.copy(temp, 0, 0, 2000, 2000, 0, 0, 2000, 2000)
+  //   return img
+  // })
+  // this takes a looooong time
+  // let's do it asynchronously
+  // and just not let them be used until complete
+  const xSpan = 500
+  const ySpan = 500
+  for ( let i = 0; i < 10; i++) {
+    temp.patternColors(shuffle(PALETTE));
+    temp.pattern(randPattern(100));
+    temp.patternAngle(int(random(4)) * PI / 4);
+    temp.push()
+    // temp.rotate(isDraw * HALF_PI);
+
+    const rn = random();
+    if(rn > 0.66) temp.rectPattern(0, 0, xSpan, ySpan, xSpan, 0, 0, 0);
+    else if(rn > 0.33) temp.arcPattern(xSpan / 2, ySpan / 2, xSpan * 2, ySpan * 2, PI, TAU / 4 * 3);
+    else temp.trianglePattern(xSpan / 2, ySpan / 2, -xSpan / 2, ySpan / 2, xSpan / 2, -ySpan / 2);
+    
+    let img = createImage(2000, 2000)
+    img.copy(temp, 0, 0, 500, 500, 0, 0, img.width, img.height)
+    console.log(`create patther ${i}`)
+    solids.push(img)
+    temp.pop()
+  }
+
+  temp.remove()
+  return solids
 }
 
 const squareCrop = img => {
@@ -136,7 +202,7 @@ const squareCrop = img => {
       x = random(0, w - min)
       y = random(0, h - min)
       break
-    }
+  }
 
   return img.get(x, y, min, min)
 }
@@ -416,9 +482,6 @@ function mode1 () {
 }
 
 // Collaging random chunks
-// NOTE: circle mode ignores the upper left
-// it would have to select areas "outside" the box to not ignore it
-// Do I have this problem in the other app?
 function mode2 () {
   config.lastMode = mode2
 
@@ -520,28 +583,54 @@ function mode4 () {
   random(sounds).play()
 }
 
-// Floating rounded rectangular splashes
 function mode5 () {
   config.lastMode = mode5
-  target.noStroke()
-  img = cimages.random.cropped
+  const coinflip = () => random() > 0.2 // TODO: config setting
 
-  const c = img.get(target.width / 2, target.height / 2)
-  target.fill(c)
-  target.rect(0, 0, target.width, target.height)
-
-  for (let i = 0; i < 1500; i++) {
-    img = cimages.random.cropped
-
-    const stripX = random(img.width)
-    const stripY = random(img.height)
-    const stripW = random(5, 30)
-    const stripH = random(5, 30)
-
-    const c = img.get(stripX, stripY)
-    target.fill(c)
-    target.rect(stripX, stripY, stripW, stripH, 5)
+  target.image(cimages.random.cropped, 0, 0)
+  if (config.outline) {
+    target.strokeWeight(config.outlineWeight)
+    target.stroke('black')
+    target.noFill()
   }
+
+  for (let i = 0; i < config.stripCount; i++) {
+    // TODO: patImage should be scaled to [circle] size, not entire image
+    // so that switches it up a bit
+    img = coinflip() ? random(patImages)  : cimages.random.cropped
+    const stripW = random(config.stripMin, config.stripMax)
+    const stripH = random(config.stripMin, config.stripMax)
+    const stripX = random(stripW / -2, img.width)
+    const stripY = random(stripH / -2, img.height)
+    const strip = img.get(stripX, stripY, stripW, stripH)
+
+    if (config.circle) {
+      let customMask = createGraphics(stripW, stripH)
+      customMask.noStroke()
+      customMask.fill(255)
+      customMask.circle(stripW / 2, stripH / 2, Math.min(stripH, stripW))
+      strip.mask(customMask)
+      customMask.remove()
+      target.circle(
+        stripX + stripW / 2,
+        stripY + stripH / 2,
+        Math.min(stripH, stripW)
+      )
+      target.image(strip, stripX, stripY)
+    } else {
+      target.rect(stripX, stripY, stripW, stripH)
+      target.image(strip, stripX, stripY)
+    }
+  }
+
+  if (config.outline) {
+    target.rect(0, 0, target.width, target.height)
+  }
+  // filter(ERODE);
+  // filter(THRESHOLD, 0.4);
+  target.strokeWeight(0)
+
+  target.filter(DILATE)
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play()
 }
@@ -693,7 +782,6 @@ const factor = {
 
 // wrapper
 function mondrian (w, h, x, y, prob, vertical) {
-
   mondrianInner(w, h, x, y, prob, vertical)
 
   if (config.outline) {
@@ -718,11 +806,25 @@ function mondrianInner (w, h, x, y, prob, vertical) {
     if (vertical) {
       const wDivision = floor(random(w * factor.low, w * factor.high))
       mondrianInner(wDivision, h, x, y, prob * config.mondrianProbFactor, false)
-      mondrianInner(w - wDivision, h, x + wDivision, y, prob * config.mondrianProbFactor, false)
+      mondrianInner(
+        w - wDivision,
+        h,
+        x + wDivision,
+        y,
+        prob * config.mondrianProbFactor,
+        false
+      )
     } else {
       const hDivision = floor(random(h * factor.low, h * factor.high))
       mondrianInner(w, hDivision, x, y, prob * config.mondrianProbFactor, true)
-      mondrianInner(w, h - hDivision, x, y + hDivision, prob * config.mondrianProbFactor, true)
+      mondrianInner(
+        w,
+        h - hDivision,
+        x,
+        y + hDivision,
+        prob * config.mondrianProbFactor,
+        true
+      )
     }
   } else {
     // Base case: Draw rectangle
@@ -797,4 +899,13 @@ function blendLightest () {
   resetBtn.show()
   blendBtn.hide()
   actionSound.play()
+}
+
+function createCols(url)
+{
+	let slaIndex = url.lastIndexOf("/");
+	let colStr = url.slice(slaIndex + 1);
+	let colArr = colStr.split("-");
+	for(let i = 0; i < colArr.length; i++)colArr[i] = "#" + colArr[i];
+	return colArr;
 }

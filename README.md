@@ -16,6 +16,7 @@
 
 - <https://github.com/antiboredom/p5.patgrad>
 - <https://github.com/SYM380/p5.pattern>
+- <https://b2renger.github.io/p5js_patterns/>
 
 ## Original notes 
 
