@@ -17,14 +17,18 @@ const userUploads = [] // buffer array for storing user uploads
 let isUploads = false // Initial boolean value of user load status
 let isHorizontal = true // Initial boolean value of pattern direction
 let isBlended = false // Initial bool value of the image blending status
-let img // singel image buffer
-let probFactor = 0.7 // mondrian division probability factor
-let thickness = 0 // mondrian grid thickness
+let img // single image buffer
 let displayCanvas // canvas
-let mondrianProb = 1.2
 
 let COLS = createCols("https://coolors.co/bcf8ec-aed9e0-9fa0c3-8b687f-7b435b");
 let PALETTE;
+
+const cropStrategies = ['CENTER', 'TOP-LEFT', 'BOTTOM-RIGHT', 'RANDOM']
+const fragmentStrategies = {
+  LOCATION_FRAGMENT: 'location',
+  FULL_CENTERED: 'fullcenter',
+  RANDOM: 'random'
+}
 
 const config = {
   mondrianStripes: true,
@@ -37,11 +41,11 @@ const config = {
   stripMin: 100,
   stripMax: 1000,
   stripCount: 100,
-  probFactor: 0.7,
-  thickness: 0,
   mondrianProb: 1.2,
   mondrianProbFactor: 0.7,
-  cropStrategy: 'CENTER'
+  cropStrategy: 'CENTER',
+  solidProb: 0.8,
+  fragmentStrategy: fragmentStrategies.RANDOM
 }
 let uploadBtn, downloadBtn, clearBtn, blendBtn, resetBtn
 let namer = filenamer(datestring())
@@ -58,7 +62,6 @@ const modes = [
   [mode9, 'Concentric circle splashes']
 ]
 
-const cropStrategies = ['CENTER', 'TOP-LEFT', 'BOTTOM-RIGHT', 'RANDOM']
 
 let target // graphics object at full size
 const pane = new Pane()
@@ -88,7 +91,7 @@ sketch.setup = () => {
   pane.addBinding(config, 'mondrianTileSize', { min: 100, max: 1000, step: 50 })
   pane.addBinding(config, 'stripeSize', { min: 1, max: 50, step: 1 })
   pane.addBinding(config, 'mondrianProb', { min: 0.05, max: 2, step: 0.05 })
-  pane.addBinding(config, 'probFactor', { min: 0.1, max: 0.95, step: 0.05 })
+  pane.addBinding(config, 'mondrianProbFactor', { min: 0.1, max: 0.95, step: 0.05 })
 
   pane.addBinding(config, 'outline')
   pane.addBinding(config, 'circle')
@@ -96,6 +99,7 @@ sketch.setup = () => {
   pane.addBinding(config, 'stripMin', { min: 50, max: 900, step: 25 })
   pane.addBinding(config, 'stripMax', { min: 100, max: 1000, step: 25 })
   pane.addBinding(config, 'stripCount', { min: 1, max: 200, step: 1 })
+  pane.addBinding(config, 'solidProb', { min: 0, max: 1, step: 0.1 })
   pane
     .addBlade({
       view: 'list',
@@ -105,6 +109,12 @@ sketch.setup = () => {
     })
     .on('change', ({ value }) => {
       config.cropStrategy = value
+    })
+  pane.addBinding(
+    config,
+    'fragmentStrategy', 
+    {
+      options: fragmentStrategies
     })
 
   for (let i = 0, n = images.length; i < n; i++) {
@@ -123,15 +133,15 @@ function randPattern(t)
 	const ptArr = [
 		PTN.noise(0.5),
 		PTN.noiseGrad(0.4),
-		// PTN.stripe(t / int(random(6, 12))),
-		// PTN.stripeCircle(t / int(random(6, 12))),
-		// PTN.stripePolygon(int(random(3, 7)),  int(random(6, 12))),
+		PTN.stripe(t / int(random(6, 12))),
+		PTN.stripeCircle(t / int(random(6, 12))),
+		PTN.stripePolygon(int(random(3, 7)),  int(random(6, 12))),
 		PTN.stripeRadial(TAU /  int(random(6, 30))),
-		// PTN.wave(t / int(random(1, 3)), t / int(random(10, 20)), t / 5, t / 10),
-		// PTN.dot(t / 10, t / 10 * random(0.2, 1)),
-		// PTN.checked(t / int(random(5, 20)), t / int(random(5, 20))),
-		// PTN.cross(t / int(random(10, 20)), t / int(random(20, 40))),
-		// PTN.triangle(t / int(random(5, 20)), t / int(random(5, 20)))
+		PTN.wave(t / int(random(1, 3)), t / int(random(10, 20)), t / 5, t / 10),
+		PTN.dot(t / 10, t / 10 * random(0.2, 1)),
+		PTN.checked(t / int(random(5, 20)), t / int(random(5, 20))),
+		PTN.cross(t / int(random(10, 20)), t / int(random(20, 40))),
+		PTN.triangle(t / int(random(5, 20)), t / int(random(5, 20)))
 	]
 	return random(ptArr);
 }
@@ -167,7 +177,7 @@ const makeSolids = () => {
     
     let img = createImage(2000, 2000)
     img.copy(temp, 0, 0, 500, 500, 0, 0, img.width, img.height)
-    console.log(`create patther ${i}`)
+    console.log(`created pattern ${i + 1}`)
     solids.push(img)
     temp.pop()
   }
@@ -329,17 +339,15 @@ sketch.keyTyped = () => {
   } else if (key === 'h') {
     isHorizontal = !isHorizontal
   } else if (key === 'p') {
-    probFactor = +((probFactor - 0.1 + 0.9) % 0.9).toFixed(1)
-    probFactor = probFactor === 0 ? 0.9 : probFactor
-  } else if (key === 't') {
-    thickness = (thickness + 1) % 20
+    config.mondrianProbFactor = +((config.mondrianProbFactor - 0.1 + 0.9) % 0.9).toFixed(1)
+    config.mondrianProbFactor = config.mondrianProbFactor === 0 ? 0.9 : config.mondrianProbFactor
   } else if (key === 'm') {
     config.mondrianStripes = !config.mondrianStripes
     actionSound.play()
   } else if (key === 'n') {
     config.stripeSize += 1 % 20
   } else if (key === 'l') {
-    mondrianProb = (mondrianProb + 0.1) % 1
+    config.mondrianProb = (config.mondrianProb + 0.1) % 1
   } else if (key === 'z') {
     config.mondrianTileSize = ((config.mondrianTileSize + 25) % 1000) + 25
     console.log(config.mondrianTileSize)
@@ -585,9 +593,10 @@ function mode4 () {
 
 function mode5 () {
   config.lastMode = mode5
-  const coinflip = () => random() > 0.2 // TODO: config setting
+  const coinflip = () => random() < config.solidProb
 
   target.image(cimages.random.cropped, 0, 0)
+
   if (config.outline) {
     target.strokeWeight(config.outlineWeight)
     target.stroke('black')
@@ -595,14 +604,40 @@ function mode5 () {
   }
 
   for (let i = 0; i < config.stripCount; i++) {
-    // TODO: patImage should be scaled to [circle] size, not entire image
-    // so that switches it up a bit
-    img = coinflip() ? random(patImages)  : cimages.random.cropped
+    let cf = coinflip()
+    let patImg = false
+    if (cf) {
+      img = random(patImages)
+      patImg = true
+    } else {
+      img = cimages.random.cropped
+    }
+
     const stripW = random(config.stripMin, config.stripMax)
-    const stripH = random(config.stripMin, config.stripMax)
+    const stripH = config.circle ? stripW : random(config.stripMin, config.stripMax)
     const stripX = random(stripW / -2, img.width)
     const stripY = random(stripH / -2, img.height)
-    const strip = img.get(stripX, stripY, stripW, stripH)
+
+    let strip
+    switch (config.fragmentStrategy) {
+      case fragmentStrategies.LOCATION_FRAGMENT:
+        strip = img.get(stripX, stripY, stripW, stripH)
+        break
+      case fragmentStrategies.RANDOM:
+        strip = img.get(
+          random(0, img.width - stripW),
+          random(0, img.height - stripH),
+          stripW,
+          stripH
+        )
+        break
+      case fragmentStrategies.FULL_CENTERED:
+        const scale = img.width / Math.max(stripW, stripH)
+        strip = createImage(stripW, stripH)
+        const scaledWidth = stripW * scale
+        const scaledHeight = stripH * scale
+        strip.copy(img, img.width / 2 - scaledWidth / 2, img.height / 2 - scaledHeight / 2, scaledWidth, scaledHeight, 0, 0, stripW, stripH)
+    }
 
     if (config.circle) {
       let customMask = createGraphics(stripW, stripH)
@@ -674,22 +709,20 @@ function mode6 () {
   random(sounds).play()
 }
 
-let counter = 0
 // Mondrian stripes
 function mode7 () {
   config.lastMode = mode7
   target.noStroke()
-  counter = 0
+
   mondrian(
-    target.width - thickness,
-    target.height - thickness,
-    thickness / 2,
-    thickness / 2,
+    target.width,
+    target.height,
+    1,
+    1,
     config.mondrianProb,
     random(2) < 1
   )
   // target.filter(DILATE);
-  console.log(`called Mondrian ${counter} times`)
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play()
 }
@@ -799,7 +832,6 @@ function mondrian (w, h, x, y, prob, vertical) {
 // positioned on lines and intersections
 // but we'd have to have knowledge of where lines had been drawn....
 function mondrianInner (w, h, x, y, prob, vertical) {
-  counter++
   // Recursion calls: Divide againv
   const coinFlip = random(1) < prob
   if (coinFlip) {
@@ -829,8 +861,8 @@ function mondrianInner (w, h, x, y, prob, vertical) {
   } else {
     // Base case: Draw rectangle
     img = cimages.random.cropped
-    const tileHeight = max(h - thickness, 0)
-    const tileWidth = max(w - thickness, 0)
+    const tileHeight = max(h, 0)
+    const tileWidth = max(w, 0)
     if (config.outline) {
       target.stroke('black')
       target.strokeWeight(config.outlineWeight)
@@ -846,11 +878,12 @@ function mondrianInner (w, h, x, y, prob, vertical) {
       // Draw horizontal stripes
       if (random(1) > 0.5) {
         for (let j = 0; j < tileHeight; j += config.stripeSize) {
-          const c = img.get(x + thickness / 2, y + thickness / 2 + j)
+          const c = img.get(x, y + j)
+
           target.fill(c)
           target.rect(
-            x + thickness / 2,
-            y + thickness / 2 + j,
+            x,
+            y + j,
             tileWidth,
             config.stripeSize
           )
@@ -858,11 +891,12 @@ function mondrianInner (w, h, x, y, prob, vertical) {
       } else {
         // Draw vertical strips
         for (let j = 0; j < tileWidth; j += config.stripeSize) {
-          const c = img.get(x + thickness / 2 + j, y + thickness / 2)
+          const c = img.get(x + j, y)
+
           target.fill(c)
           target.rect(
-            x + thickness / 2 + j,
-            y + thickness / 2,
+            x + j,
+            y,
             config.stripeSize,
             tileHeight
           )
@@ -870,14 +904,14 @@ function mondrianInner (w, h, x, y, prob, vertical) {
       }
     } else {
       const strip = img.get(
-        x + thickness / 2,
-        y + thickness / 2,
+        x,
+        y,
         tileWidth,
         tileHeight
       )
       if (tileHeight !== 0 && tileWidth !== 0) {
-        target.rect(x + thickness / 2, y + thickness / 2, tileWidth, tileHeight)
-        target.image(strip, x + thickness / 2, y + thickness / 2)
+        target.rect(x, y, tileWidth, tileHeight)
+        target.image(strip, x, y)
       }
     }
   }
