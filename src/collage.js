@@ -33,7 +33,7 @@ const fragmentStrategies = {
 const config = {
   mondrianStripes: true,
   mondrianTileSize: 400,
-  lastMode: null,
+  currentMode: null,
   stripeSize: 1,
   outline: true,
   circle: false,
@@ -45,7 +45,8 @@ const config = {
   mondrianProbFactor: 0.7,
   cropStrategy: 'CENTER',
   solidProb: 0.8,
-  fragmentStrategy: fragmentStrategies.RANDOM
+  fragmentStrategy: fragmentStrategies.RANDOM,
+  patternsReady: false
 }
 let uploadBtn, downloadBtn, clearBtn, blendBtn, resetBtn
 let namer = filenamer(datestring())
@@ -123,7 +124,11 @@ sketch.setup = () => {
     cimages.addImage(new CollageImage(images[i], croppedImg))
   }
 
-  patImages = makeSolids()
+  makeSolids()
+    .then(pats => {
+      patImages = pats
+      config.patternsReady = true
+    })
 
   noLoop()
 }
@@ -183,7 +188,7 @@ const makeSolids = () => {
   }
 
   temp.remove()
-  return solids
+  return Promise.resolve(solids)
 }
 
 const squareCrop = img => {
@@ -266,7 +271,7 @@ function setupButtons () {
   for (let n = 0; n < 10; n++) {
     let modeBtn
     if (n === 0) {
-      modeBtn = createButton('original')
+      modeBtn = createButton('gallery')
     } else {
       modeBtn = createButton('mode ' + n)
     }
@@ -314,7 +319,7 @@ sketch.draw = () => {
     clearBtn.show()
   }
 
-  mode0()
+  displayGallery()
   random(sounds).play()
 }
 
@@ -332,6 +337,8 @@ sketch.keyTyped = () => {
     namer = filenamer(datestring())
   } else if (key === 'd') {
     duplicateRecrop()
+  } else if (key === 'g') {
+    displayGallery()
   } else if (key === 'u') {
     dropFiles()
   } else if (key === 'o') {
@@ -354,10 +361,10 @@ sketch.keyTyped = () => {
   } else if ('0123456789'.includes(key)) {
     modes[key][0]()
   } else if (key === '`') {
-    if (config.lastMode === null) return false
+    if (config.currentMode === null) return false
     frameRate(5)
     for (let i = 0; i < 30; i++) {
-      config.lastMode()
+      config.currentMode()
       // repeated saves don't work so well - I get 18/20 or worse.
       // I "solved" this problem by using a custom library - see polychrometext
       // except it still doesn't work, here. Something else must have come into play.
@@ -406,7 +413,7 @@ const duplicateRecrop = () => {
   cloned.cropped.resize(target.width, 0)
   cimages.addImage(cloned)
   config.cropStrategy = tempCropMode
-  mode0()
+  displayGallery()
 }
 
 // Clear upload files
@@ -433,8 +440,8 @@ function download () {
 }
 
 // Show input image gallery (no more than 9 for speed)
-function mode0 () {
-  config.lastMode = mode0
+const displayGallery = () => {
+  config.currentMode = mode0
   const tileCountX = 3
   const tileCountY = 3
 
@@ -450,13 +457,17 @@ function mode0 () {
       i = (i + 1) % cimages.images.length
     }
   }
+}
+
+function mode0 () {
+  displayGallery()
 
   sounds[0].play()
 }
 
 // Full-length strips
 function mode1 () {
-  config.lastMode = mode1
+  config.currentMode = mode1
   if (isHorizontal) {
     for (let y = 0; y < target.height; y += 10) {
       img = cimages.random.cropped
@@ -491,7 +502,7 @@ function mode1 () {
 
 // Collaging random chunks
 function mode2 () {
-  config.lastMode = mode2
+  config.currentMode = mode2
 
   target.image(cimages.random.cropped, 0, 0)
   if (config.outline) {
@@ -539,35 +550,73 @@ function mode2 () {
   random(sounds).play()
 }
 
-// Regular grid of stretched pixels
+// discarded original
+// now based on /Users/michaelpaulukonis/projects/Code-Package-p5.js/01_P/P_4_2_1_02
 function mode3 () {
-  config.lastMode = mode3
+  config.currentMode = mode3
+  target.image(cimages.random.cropped,0,0)
 
-  target.noStroke()
-  const tileHeight = 20
-  const tileWidth = random(20, 50)
+  target.imageMode(CENTER)
+  // TODO: need a smaller version
+  const img1 = cimages.random.cropped.get()
+  // img1.resize(200, 0)
+  const img2 = cimages.random.cropped.get()
+  // img2.resize(200, 0)
+  const img3 = cimages.random.cropped.get()
+  // img3.resize(200, 0)
 
-  const tileCountY = target.height / tileHeight
-  const tileCountX = target.width / tileWidth
+  const items1 = generateCollageItems(img1, random(10, 30), 0, target.height / 2, PI * 5, target.height, 0.1, 0.5, 0, 0)
+  const items2 = generateCollageItems(img2, random(15, 40), 0, target.height * 0.15, PI * 5, 150, 0.1, random(0.3, 0.8), -PI / 6, PI / 65)
+  const items3 = generateCollageItems(img3, random(10, 45), 0, target.height * 0.66, PI * 5, target.height * 0.66, 0.1, random(0.2, 0.5), -0.05, 0.05)
 
-  for (let gridY = 0; gridY < tileCountY; gridY++) {
-    for (let gridX = 0; gridX < tileCountX; gridX++) {
-      img = cimages.random.cropped
+  // target.background('white')
+  drawCollageitems(items1)
+  drawCollageitems(items2)
+  drawCollageitems(items3)
 
-      for (let j = 0; j < tileHeight; j++) {
-        const c = img.get(gridX * tileWidth, gridY * tileHeight + j)
-        target.fill(c)
-        target.rect(gridX * tileWidth, gridY * tileHeight + j, tileWidth, 1)
-      }
-    }
-  }
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
+  target.imageMode(CORNER)
   random(sounds).play()
+}
+
+function generateCollageItems(img, count, angle, length, rangeA, rangeL, scaleStart, scaleEnd, rotationStart, rotationEnd) {
+  var layerItems = [];
+    for (var j = 0; j < count; j++) {
+      var collageItem = new CollageItem(img);
+      collageItem.a = angle + random(-rangeA / 2, rangeA / 2);
+      collageItem.l = length + random(-rangeL / 2, rangeL / 2);
+      collageItem.scaling = random(scaleStart, scaleEnd);
+      collageItem.rotation = collageItem.a + HALF_PI + random(rotationStart, rotationEnd);
+      layerItems.push(collageItem);
+    }
+  return layerItems;
+}
+
+function CollageItem(image) {
+  this.a = 0;
+  this.l = 0;
+  this.rotation = 0;
+  this.scaling = 1;
+  this.image = image;
+}
+
+function drawCollageitems(layerItems) {
+  for (var i = 0; i < layerItems.length; i++) {
+    target.push();
+    target.translate(
+      target.width / 2 + cos(layerItems[i].a) * layerItems[i].l,
+      target.height / 2 + sin(layerItems[i].a) * layerItems[i].l
+    );
+    target.rotate(layerItems[i].rotation);
+    target.scale(layerItems[i].scaling);
+    target.image(layerItems[i].image, 0, 0);
+    target.pop();
+  }
 }
 
 // Floating pixels
 function mode4 () {
-  config.lastMode = mode4
+  config.currentMode = mode4
   target.fill(0)
   target.rect(0, 0, target.width, target.height)
   target.noStroke()
@@ -591,8 +640,11 @@ function mode4 () {
   random(sounds).play()
 }
 
+// TODO: check if a box is a subset/superset of another box, 
+// and then .... uh, something
+// this is an elaboration of mode2
 function mode5 () {
-  config.lastMode = mode5
+  config.currentMode = mode5
   const coinflip = () => random() < config.solidProb
 
   target.image(cimages.random.cropped, 0, 0)
@@ -604,14 +656,8 @@ function mode5 () {
   }
 
   for (let i = 0; i < config.stripCount; i++) {
-    let cf = coinflip()
-    let patImg = false
-    if (cf) {
-      img = random(patImages)
-      patImg = true
-    } else {
-      img = cimages.random.cropped
-    }
+    let cf = coinflip() && config.patternsReady
+    img = cf ? random(patImages) : cimages.random.cropped
 
     const stripW = random(config.stripMin, config.stripMax)
     const stripH = config.circle ? stripW : random(config.stripMin, config.stripMax)
@@ -662,7 +708,7 @@ function mode5 () {
     target.rect(0, 0, target.width, target.height)
   }
   // filter(ERODE);
-  // filter(THRESHOLD, 0.4);
+  filter(THRESHOLD, 0.4);
   target.strokeWeight(0)
 
   target.filter(DILATE)
@@ -672,7 +718,7 @@ function mode5 () {
 
 // Horizontal free strips
 function mode6 () {
-  config.lastMode = mode6
+  config.currentMode = mode6
   target.noStroke()
   const tileHeight = 5
   const tileCountY = target.height / tileHeight
@@ -711,7 +757,7 @@ function mode6 () {
 
 // Mondrian stripes
 function mode7 () {
-  config.lastMode = mode7
+  config.currentMode = mode7
   target.noStroke()
 
   mondrian(
@@ -729,7 +775,7 @@ function mode7 () {
 
 // Horizontally stretched
 function mode8 () {
-  config.lastMode = mode8
+  config.currentMode = mode8
   target.noStroke()
   const backGrnd = cimages.random.cropped
 
@@ -760,7 +806,7 @@ function mode8 () {
 
 // Concentric circle splashes
 function mode9 () {
-  config.lastMode = mode9
+  config.currentMode = mode9
   target.fill(0)
   target.noStroke()
   target.rect(0, 0, target.width, target.height)

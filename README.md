@@ -18,6 +18,10 @@
 - <https://github.com/SYM380/p5.pattern>
 - <https://b2renger.github.io/p5js_patterns/>
 
+- rectangular selection - https://stackoverflow.com/questions/74334364/drawing-a-rectangle-with-mouse-position-in-p5js
+- also the vectors in https://schultzschultz.com/p5_tools/pixelStretch_Desktop/
+
+
 ## Original notes 
 
 From < https://github.com/zhixin-lin/computational-collage.git>
