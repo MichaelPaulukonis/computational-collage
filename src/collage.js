@@ -4,7 +4,7 @@ import { Pane } from 'tweakpane'
 import { sketch } from 'p5js-wrapper'
 import 'p5js-wrapper/sound'
 import './p5.pattern.js'
-import { PTN } from  './p5.pattern.js'
+import { PTN } from './p5.pattern.js'
 import { datestring, filenamer } from './filelib'
 import { CollageImage, Images } from './images'
 
@@ -20,8 +20,14 @@ let isBlended = false // Initial bool value of the image blending status
 let img // single image buffer
 let displayCanvas // canvas
 
-let COLS = createCols("https://coolors.co/bcf8ec-aed9e0-9fa0c3-8b687f-7b435b");
-let PALETTE;
+let COLS = createCols('https://coolors.co/bcf8ec-aed9e0-9fa0c3-8b687f-7b435b')
+let PALETTE
+
+const activityModes = {
+  Drawing: 'draw',
+  Gallery: 'gallery'
+}
+let activity = activityModes.Drawing
 
 const cropStrategies = ['CENTER', 'TOP-LEFT', 'BOTTOM-RIGHT', 'RANDOM']
 const fragmentStrategies = {
@@ -46,7 +52,8 @@ const config = {
   cropStrategy: 'CENTER',
   solidProb: 0.8,
   fragmentStrategy: fragmentStrategies.RANDOM,
-  patternsReady: false
+  patternsReady: false,
+  selectedIndex: 0
 }
 let uploadBtn, downloadBtn, clearBtn, blendBtn, resetBtn
 let namer = filenamer(datestring())
@@ -54,15 +61,14 @@ const modes = [
   [mode0, 'Image gallery'],
   [mode1, 'Full-length strips'],
   [mode2, 'Collaging random chunks'],
-  [mode3, 'Regular grid of stretched pixels'],
+  [mode3, 'Circular arrangements'],
   [mode4, 'Floating pixels'],
-  [mode5, 'Floating rounded rectangular splashes'],
+  [mode5, 'Mondrian boxes'],
   [mode6, 'Horizontal free strips'],
   [mode7, 'Mondrian stripes'],
   [mode8, 'Horizontally stretched'],
   [mode9, 'Concentric circle splashes']
 ]
-
 
 let target // graphics object at full size
 const pane = new Pane()
@@ -72,6 +78,7 @@ sketch.preload = () => {
   for (let i = 0; i < 6; i++) {
     images[i] = loadImage('uploads/trees' + i + '.jpg')
   }
+  console.log('images loaded')
 
   // Load sounds: Sound from Zapsplat.com
   for (let i = 0; i < 4; i++) {
@@ -79,6 +86,7 @@ sketch.preload = () => {
   }
 
   actionSound = loadSound('uploads/glassy0.mp3')
+  console.log('sounds loaded')
 }
 
 sketch.setup = () => {
@@ -92,7 +100,11 @@ sketch.setup = () => {
   pane.addBinding(config, 'mondrianTileSize', { min: 100, max: 1000, step: 50 })
   pane.addBinding(config, 'stripeSize', { min: 1, max: 50, step: 1 })
   pane.addBinding(config, 'mondrianProb', { min: 0.05, max: 2, step: 0.05 })
-  pane.addBinding(config, 'mondrianProbFactor', { min: 0.1, max: 0.95, step: 0.05 })
+  pane.addBinding(config, 'mondrianProbFactor', {
+    min: 0.1,
+    max: 0.95,
+    step: 0.05
+  })
 
   pane.addBinding(config, 'outline')
   pane.addBinding(config, 'circle')
@@ -111,12 +123,9 @@ sketch.setup = () => {
     .on('change', ({ value }) => {
       config.cropStrategy = value
     })
-  pane.addBinding(
-    config,
-    'fragmentStrategy', 
-    {
-      options: fragmentStrategies
-    })
+  pane.addBinding(config, 'fragmentStrategy', {
+    options: fragmentStrategies
+  })
 
   for (let i = 0, n = images.length; i < n; i++) {
     let croppedImg = squareCrop(images[i])
@@ -124,62 +133,89 @@ sketch.setup = () => {
     cimages.addImage(new CollageImage(images[i], croppedImg))
   }
 
-  makeSolids()
-    .then(pats => {
-      patImages = pats
-      config.patternsReady = true
-    })
+  background(0)
 
-  noLoop()
+  makeSolids() // not going to be asynchronous w/o web-worker
+
+  // Check if user has supplied photos
+  if (isUploads) {
+    uploadBtn.hide()
+    clearBtn.show()
+  }
+
+  displayGallery()
+  random(sounds).play()
 }
 
-function randPattern(t)
-{
-	const ptArr = [
-		PTN.noise(0.5),
-		PTN.noiseGrad(0.4),
-		PTN.stripe(t / int(random(6, 12))),
-		PTN.stripeCircle(t / int(random(6, 12))),
-		PTN.stripePolygon(int(random(3, 7)),  int(random(6, 12))),
-		PTN.stripeRadial(TAU /  int(random(6, 30))),
-		PTN.wave(t / int(random(1, 3)), t / int(random(10, 20)), t / 5, t / 10),
-		PTN.dot(t / 10, t / 10 * random(0.2, 1)),
-		PTN.checked(t / int(random(5, 20)), t / int(random(5, 20))),
-		PTN.cross(t / int(random(10, 20)), t / int(random(20, 40))),
-		PTN.triangle(t / int(random(5, 20)), t / int(random(5, 20)))
-	]
-	return random(ptArr);
+function randPattern (t) {
+  const ptArr = [
+    PTN.noise(0.5),
+    PTN.noiseGrad(0.4),
+    PTN.stripe(t / int(random(6, 12))),
+    PTN.stripeCircle(t / int(random(6, 12))),
+    PTN.stripePolygon(int(random(3, 7)), int(random(6, 12))),
+    PTN.stripeRadial(TAU / int(random(6, 30))),
+    PTN.wave(t / int(random(1, 3)), t / int(random(10, 20)), t / 5, t / 10),
+    PTN.dot(t / 10, (t / 10) * random(0.2, 1)),
+    PTN.checked(t / int(random(5, 20)), t / int(random(5, 20))),
+    PTN.cross(t / int(random(10, 20)), t / int(random(20, 40))),
+    PTN.triangle(t / int(random(5, 20)), t / int(random(5, 20)))
+  ]
+  return random(ptArr)
 }
 
 const makeSolids = () => {
   let solids = []
-  let colors = ['tomato', 'powderblue', 'yellowgreen', 'white', 'salmon', 'turquoise']
+  let colors = [
+    'tomato',
+    'powderblue',
+    'yellowgreen',
+    'white',
+    'salmon',
+    'turquoise'
+  ]
   let temp = createGraphics(500, 500)
-  PALETTE = shuffle(COLS, true);
+  PALETTE = shuffle(COLS, true)
 
-  // solids = colors.map(color => {
-  //   temp.background(color)
-  //   let img = createImage(2000, 2000)
-  //   img.copy(temp, 0, 0, 2000, 2000, 0, 0, 2000, 2000)
-  //   return img
-  // })
-  // this takes a looooong time
-  // let's do it asynchronously
-  // and just not let them be used until complete
+  // // solids = colors.map(color => {
+  // //   temp.background(color)
+  // //   let img = createImage(2000, 2000)
+  // //   img.copy(temp, 0, 0, 2000, 2000, 0, 0, 2000, 2000)
+  // //   return img
+  // // })
+  // // this takes a looooong time
+  // // let's do it asynchronously
+  // // and just not let them be used until complete
   const xSpan = 500
   const ySpan = 500
-  for ( let i = 0; i < 10; i++) {
-    temp.patternColors(shuffle(PALETTE));
-    temp.pattern(randPattern(100));
-    temp.patternAngle(int(random(4)) * PI / 4);
+  for (let i = 0; i < 10; i++) {
+    temp.patternColors(shuffle(PALETTE))
+    temp.pattern(randPattern(100))
+    temp.patternAngle((int(random(4)) * PI) / 4)
     temp.push()
     // temp.rotate(isDraw * HALF_PI);
 
-    const rn = random();
-    if(rn > 0.66) temp.rectPattern(0, 0, xSpan, ySpan, xSpan, 0, 0, 0);
-    else if(rn > 0.33) temp.arcPattern(xSpan / 2, ySpan / 2, xSpan * 2, ySpan * 2, PI, TAU / 4 * 3);
-    else temp.trianglePattern(xSpan / 2, ySpan / 2, -xSpan / 2, ySpan / 2, xSpan / 2, -ySpan / 2);
-    
+    const rn = random()
+    if (rn > 0.66) temp.rectPattern(0, 0, xSpan, ySpan, xSpan, 0, 0, 0)
+    else if (rn > 0.33)
+      temp.arcPattern(
+        xSpan / 2,
+        ySpan / 2,
+        xSpan * 2,
+        ySpan * 2,
+        PI,
+        (TAU / 4) * 3
+      )
+    else
+      temp.trianglePattern(
+        xSpan / 2,
+        ySpan / 2,
+        -xSpan / 2,
+        ySpan / 2,
+        xSpan / 2,
+        -ySpan / 2
+      )
+
     let img = createImage(2000, 2000)
     img.copy(temp, 0, 0, 500, 500, 0, 0, img.width, img.height)
     console.log(`created pattern ${i + 1}`)
@@ -188,7 +224,8 @@ const makeSolids = () => {
   }
 
   temp.remove()
-  return Promise.resolve(solids)
+  patImages = solids
+  config.patternsReady = true
 }
 
 const squareCrop = img => {
@@ -311,65 +348,89 @@ function setupButtons () {
 }
 
 sketch.draw = () => {
-  background(0)
-
-  // Check if user has supplied photos
-  if (isUploads) {
-    uploadBtn.hide()
-    clearBtn.show()
+  if (activity === activityModes.Gallery) {
   }
+}
 
-  displayGallery()
-  random(sounds).play()
+const mouseWithinCanvas = () => {
+  return (
+    mouseX >= 0 &&
+    mouseX <= displayCanvas.width &&
+    mouseY >= 0 &&
+    mouseY <= displayCanvas.height
+  )
+}
+
+// this is START of press
+sketch.mousePressed = () => {
+  if (activity === activityModes.Gallery && mouseWithinCanvas()) {
+    const tileSize = displayCanvas.width / 3
+    let clickedIndex = floor(mouseX / tileSize) + floor(mouseY / tileSize) * 3
+    if (clickedIndex < cimages.images.length) {
+      config.selectedIndex = clickedIndex
+    }
+    displayGallery()
+  }
 }
 
 sketch.keyTyped = () => {
-  if (key === 's') {
-    download()
-  } else if (key === 'a') {
-    config.circle = !config.circle
-  } else if (key === 'b') {
-    blendLightest()
-  } else if (key === 'r') {
-    resetBlend()
-  } else if (key === 'c') {
-    clearUploads()
-    namer = filenamer(datestring())
-  } else if (key === 'd') {
-    duplicateRecrop()
-  } else if (key === 'g') {
-    displayGallery()
-  } else if (key === 'u') {
-    dropFiles()
-  } else if (key === 'o') {
-    config.outline = !config.outline
-  } else if (key === 'h') {
-    isHorizontal = !isHorizontal
-  } else if (key === 'p') {
-    config.mondrianProbFactor = +((config.mondrianProbFactor - 0.1 + 0.9) % 0.9).toFixed(1)
-    config.mondrianProbFactor = config.mondrianProbFactor === 0 ? 0.9 : config.mondrianProbFactor
-  } else if (key === 'm') {
-    config.mondrianStripes = !config.mondrianStripes
-    actionSound.play()
-  } else if (key === 'n') {
-    config.stripeSize += 1 % 20
-  } else if (key === 'l') {
-    config.mondrianProb = (config.mondrianProb + 0.1) % 1
-  } else if (key === 'z') {
-    config.mondrianTileSize = ((config.mondrianTileSize + 25) % 1000) + 25
-    console.log(config.mondrianTileSize)
-  } else if ('0123456789'.includes(key)) {
+  // perform action invariant of activity
+  if ('0123456789'.includes(key)) {
     modes[key][0]()
-  } else if (key === '`') {
-    if (config.currentMode === null) return false
-    frameRate(5)
-    for (let i = 0; i < 30; i++) {
-      config.currentMode()
-      // repeated saves don't work so well - I get 18/20 or worse.
-      // I "solved" this problem by using a custom library - see polychrometext
-      // except it still doesn't work, here. Something else must have come into play.
+  } else if (activity === activityModes.Gallery) {
+    if (key === 'x') {
+      deleteImage(config.selectedIndex)
+    } else if (key === 'c') {
+      clearUploads()
+      namer = filenamer(datestring())
+    }
+  } else {
+    if (key === 's') {
       download()
-      console.log(`saved collage ${i}`)
+    } else if (key === 'a') {
+      config.circle = !config.circle
+    } else if (key === 'b') {
+      blendLightest()
+    } else if (key === 'r') {
+      resetBlend()
+    } else if (key === 'd') {
+      duplicateRecrop()
+    } else if (key === 'g') {
+      displayGallery()
+    } else if (key === 'u') {
+      dropFiles()
+    } else if (key === 'o') {
+      config.outline = !config.outline
+    } else if (key === 'h') {
+      isHorizontal = !isHorizontal
+    } else if (key === 'p') {
+      config.mondrianProbFactor = +(
+        (config.mondrianProbFactor - 0.1 + 0.9) %
+        0.9
+      ).toFixed(1)
+      config.mondrianProbFactor =
+        config.mondrianProbFactor === 0 ? 0.9 : config.mondrianProbFactor
+    } else if (key === 'm') {
+      config.mondrianStripes = !config.mondrianStripes
+      actionSound.play()
+    } else if (key === 'n') {
+      config.stripeSize += 1 % 20
+    } else if (key === 'l') {
+      config.mondrianProb = (config.mondrianProb + 0.1) % 1
+    } else if (key === 'z') {
+      config.mondrianTileSize = ((config.mondrianTileSize + 25) % 1000) + 25
+      console.log(config.mondrianTileSize)
+    } else if (key === '`') {
+      if (config.currentMode === null) return false
+      frameRate(5)
+      for (let i = 0; i < 30; i++) {
+        config.currentMode()
+        // repeated saves don't work so well - I get 18/20 or worse.
+        // I "solved" this problem by using a custom library - see polychrometext
+        // except it still doesn't work, here. Something else must have come into play.
+        download()
+        console.log(`saved collage ${i}`)
+      }
     }
   }
   return false
@@ -398,7 +459,7 @@ function handleFile (file) {
       let croppedImg = squareCrop(img)
       croppedImg.resize(target.width, 0)
       cimages.addImage(new CollageImage(img, croppedImg))
-      sketch.draw()
+      displayGallery()
     })
   } else {
     console.log('Not an image file!')
@@ -441,22 +502,98 @@ function download () {
 
 // Show input image gallery (no more than 9 for speed)
 const displayGallery = () => {
+  activity = activityModes.Gallery
   config.currentMode = mode0
   const tileCountX = 3
   const tileCountY = 3
 
   const tileWidth = displayCanvas.width / tileCountX
   const tileHeight = displayCanvas.height / tileCountY
+  background(60)
+  noStroke()
+  textSize(12)
+  textAlign(CENTER)
 
   let i = 0
   for (let gridY = 0; gridY < tileCountY; gridY++) {
     for (let gridX = 0; gridX < tileCountX; gridX++) {
-      const tmp = cimages.images[i].cropped.get()
-      tmp.resize(0, tileHeight)
-      image(tmp, gridX * tileWidth, gridY * tileHeight)
-      i = (i + 1) % cimages.images.length
+      if (i >= cimages.images.length) {
+        fill(255)
+        text(
+          'Drop to upload',
+          gridX * tileWidth + tileWidth / 2,
+          gridY * tileHeight + tileHeight / 2
+        )
+      } else {
+        const tmp = cimages.images[i].cropped.get()
+        tmp.resize(0, tileHeight)
+        image(tmp, gridX * tileWidth, gridY * tileHeight)
+
+        if (config.selectedIndex === i) {
+          noFill()
+          stroke('green')
+          strokeWeight(4)
+          rect(gridX * tileWidth, gridY * tileHeight, tileWidth, tileWidth)
+          displayCanvas.fill('black')
+          noStroke()
+        }
+      }
+      i++
     }
   }
+}
+
+// Show input image gallery (no more than 9 for speed)
+const displayGallery_other = () => {
+  const tileCountX = 3
+  const tileCountY = 3
+
+  const tileWidth = cnvs.width / tileCountX
+  const tileHeight = cnvs.height / tileCountY
+  background('white')
+  fill('black')
+  noStroke()
+
+  let i = 0
+  for (let gridY = 0; gridY < tileCountY; gridY++) {
+    for (let gridX = 0; gridX < tileCountX; gridX++) {
+      if (i >= elementImages.length) {
+        text(
+          'Drop to upload',
+          gridX * tileWidth + 20,
+          gridY * tileHeight + tileWidth / 2
+        )
+      } else {
+        const tmp = elementImages[i].get()
+        tmp.resize(0, tileHeight)
+        image(tmp, gridX * tileWidth, gridY * tileHeight)
+
+        if (sourceIndex === i) {
+          noFill()
+          stroke('green')
+          strokeWeight(4)
+          rect(
+            gridX * tileWidth + tileWidth / 2,
+            gridY * tileHeight + tileWidth / 2,
+            tileWidth,
+            tileWidth
+          )
+          fill('black')
+          noStroke()
+        }
+      }
+      i++
+    }
+  }
+}
+
+const deleteImage = index => {
+  cimages.images.splice(index, 1)
+  config.selectedIndex =
+    config.selectedIndex < cimages.images.length
+      ? config.selectedIndex
+      : config.selectedIndex - 1
+  displayGallery()
 }
 
 function mode0 () {
@@ -467,6 +604,7 @@ function mode0 () {
 
 // Full-length strips
 function mode1 () {
+  activity = activityModes.Drawing
   config.currentMode = mode1
   if (isHorizontal) {
     for (let y = 0; y < target.height; y += 10) {
@@ -502,6 +640,7 @@ function mode1 () {
 
 // Collaging random chunks
 function mode2 () {
+  activity = activityModes.Drawing
   config.currentMode = mode2
 
   target.image(cimages.random.cropped, 0, 0)
@@ -553,10 +692,13 @@ function mode2 () {
 // discarded original
 // now based on /Users/michaelpaulukonis/projects/Code-Package-p5.js/01_P/P_4_2_1_02
 function mode3 () {
+  activity = activityModes.Drawing
   config.currentMode = mode3
-  target.image(cimages.random.cropped,0,0)
+
+  target.image(cimages.random.cropped, 0, 0)
 
   target.imageMode(CENTER)
+  // TODO: get random croppings instead of one cropping
   // TODO: need a smaller version
   const img1 = cimages.random.cropped.get()
   // img1.resize(200, 0)
@@ -565,58 +707,133 @@ function mode3 () {
   const img3 = cimages.random.cropped.get()
   // img3.resize(200, 0)
 
-  const items1 = generateCollageItems(img1, random(10, 30), 0, target.height / 2, PI * 5, target.height, 0.1, 0.5, 0, 0)
-  const items2 = generateCollageItems(img2, random(15, 40), 0, target.height * 0.15, PI * 5, 150, 0.1, random(0.3, 0.8), -PI / 6, PI / 65)
-  const items3 = generateCollageItems(img3, random(10, 45), 0, target.height * 0.66, PI * 5, target.height * 0.66, 0.1, random(0.2, 0.5), -0.05, 0.05)
+  const items1 = generateCollageItems(
+    img1,
+    random(10, 30),
+    0,
+    target.height / 2,
+    PI * 5,
+    target.height,
+    0.1,
+    0.5,
+    0,
+    0
+  )
+  const items2 = generateCollageItems(
+    img2,
+    random(15, 40),
+    0,
+    target.height * 0.15,
+    PI * 5,
+    150,
+    0.1,
+    random(0.3, 0.8),
+    -PI / 6,
+    PI / 65
+  )
+  const items3 = generateCollageItems(
+    img3,
+    random(10, 45),
+    0,
+    target.height * 0.66,
+    PI * 5,
+    target.height * 0.66,
+    0.1,
+    random(0.2, 0.5),
+    -0.05,
+    0.05
+  )
 
   // target.background('white')
   drawCollageitems(items1)
   drawCollageitems(items2)
   drawCollageitems(items3)
-
+  if (config.outline) {
+    target.strokeWeight(config.outlineWeight)
+    target.stroke('black')
+    target.noFill()
+    target.rect(0, 0, target.width, target.height)
+  }
+  
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   target.imageMode(CORNER)
   random(sounds).play()
 }
 
-function generateCollageItems(img, count, angle, length, rangeA, rangeL, scaleStart, scaleEnd, rotationStart, rotationEnd) {
-  var layerItems = [];
-    for (var j = 0; j < count; j++) {
-      var collageItem = new CollageItem(img);
-      collageItem.a = angle + random(-rangeA / 2, rangeA / 2);
-      collageItem.l = length + random(-rangeL / 2, rangeL / 2);
-      collageItem.scaling = random(scaleStart, scaleEnd);
-      collageItem.rotation = collageItem.a + HALF_PI + random(rotationStart, rotationEnd);
-      layerItems.push(collageItem);
-    }
-  return layerItems;
+function generateCollageItems (
+  img,
+  count,
+  angle,
+  length,
+  rangeA,
+  rangeL,
+  scaleStart,
+  scaleEnd,
+  rotationStart,
+  rotationEnd
+) {
+  var layerItems = []
+  for (var j = 0; j < count; j++) {
+    var collageItem = new CollageItem(img)
+    collageItem.a = angle + random(-rangeA / 2, rangeA / 2)
+    collageItem.l = length + random(-rangeL / 2, rangeL / 2)
+    collageItem.scaling = random(scaleStart, scaleEnd)
+    collageItem.rotation =
+      collageItem.a + HALF_PI + random(rotationStart, rotationEnd)
+    layerItems.push(collageItem)
+  }
+  return layerItems
 }
 
-function CollageItem(image) {
-  this.a = 0;
-  this.l = 0;
-  this.rotation = 0;
-  this.scaling = 1;
-  this.image = image;
+function CollageItem (image) {
+  this.a = 0
+  this.l = 0
+  this.rotation = 0
+  this.scaling = 1
+  this.image = image
 }
 
-function drawCollageitems(layerItems) {
+function drawCollageitems (layerItems) {
+  target.strokeWeight(0)
+  if (config.outline) {
+    target.strokeWeight(config.outlineWeight)
+    target.stroke('black')
+    target.noFill()
+  }
+
+  // TODO: rewrite w/o scaling....
   for (var i = 0; i < layerItems.length; i++) {
-    target.push();
+    const img = layerItems[i].image
+    target.push()
     target.translate(
       target.width / 2 + cos(layerItems[i].a) * layerItems[i].l,
       target.height / 2 + sin(layerItems[i].a) * layerItems[i].l
-    );
-    target.rotate(layerItems[i].rotation);
-    target.scale(layerItems[i].scaling);
-    target.image(layerItems[i].image, 0, 0);
-    target.pop();
+    )
+    target.rotate(layerItems[i].rotation)
+    // target.scale(layerItems[i].scaling)
+    target.image(
+      layerItems[i].image,
+      0,
+      0,
+      img.width * layerItems[i].scaling,
+      img.height * layerItems[i].scaling
+    )
+    target.rect(
+      (-img.width * layerItems[i].scaling) / 2,
+      (-img.height * layerItems[i].scaling) / 2,
+      img.width * layerItems[i].scaling,
+      img.height * layerItems[i].scaling
+    )
+
+    target.pop()
   }
 }
 
 // Floating pixels
 function mode4 () {
+  activity = activityModes.Drawing
   config.currentMode = mode4
+
   target.fill(0)
   target.rect(0, 0, target.width, target.height)
   target.noStroke()
@@ -640,13 +857,15 @@ function mode4 () {
   random(sounds).play()
 }
 
-// TODO: check if a box is a subset/superset of another box, 
+// TODO: check if a box is a subset/superset of another box,
 // and then .... uh, something
-// this is an elaboration of mode2
+// this is an elaboration of mode2/mode7
+// try to integrate mode7 and make these more flexible?
 function mode5 () {
+  activity = activityModes.Drawing
   config.currentMode = mode5
-  const coinflip = () => random() < config.solidProb
 
+  const coinflip = () => random() < config.solidProb
   target.image(cimages.random.cropped, 0, 0)
 
   if (config.outline) {
@@ -660,7 +879,9 @@ function mode5 () {
     img = cf ? random(patImages) : cimages.random.cropped
 
     const stripW = random(config.stripMin, config.stripMax)
-    const stripH = config.circle ? stripW : random(config.stripMin, config.stripMax)
+    const stripH = config.circle
+      ? stripW
+      : random(config.stripMin, config.stripMax)
     const stripX = random(stripW / -2, img.width)
     const stripY = random(stripH / -2, img.height)
 
@@ -682,7 +903,17 @@ function mode5 () {
         strip = createImage(stripW, stripH)
         const scaledWidth = stripW * scale
         const scaledHeight = stripH * scale
-        strip.copy(img, img.width / 2 - scaledWidth / 2, img.height / 2 - scaledHeight / 2, scaledWidth, scaledHeight, 0, 0, stripW, stripH)
+        strip.copy(
+          img,
+          img.width / 2 - scaledWidth / 2,
+          img.height / 2 - scaledHeight / 2,
+          scaledWidth,
+          scaledHeight,
+          0,
+          0,
+          stripW,
+          stripH
+        )
     }
 
     if (config.circle) {
@@ -707,18 +938,17 @@ function mode5 () {
   if (config.outline) {
     target.rect(0, 0, target.width, target.height)
   }
-  // filter(ERODE);
-  filter(THRESHOLD, 0.4);
-  target.strokeWeight(0)
 
-  target.filter(DILATE)
+  target.strokeWeight(0)
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play()
 }
 
 // Horizontal free strips
 function mode6 () {
+  activity = activityModes.Drawing
   config.currentMode = mode6
+
   target.noStroke()
   const tileHeight = 5
   const tileCountY = target.height / tileHeight
@@ -757,7 +987,9 @@ function mode6 () {
 
 // Mondrian stripes
 function mode7 () {
+  activity = activityModes.Drawing
   config.currentMode = mode7
+
   target.noStroke()
 
   mondrian(
@@ -775,7 +1007,9 @@ function mode7 () {
 
 // Horizontally stretched
 function mode8 () {
+  activity = activityModes.Drawing
   config.currentMode = mode8
+
   target.noStroke()
   const backGrnd = cimages.random.cropped
 
@@ -805,8 +1039,11 @@ function mode8 () {
 }
 
 // Concentric circle splashes
+// variation ideas: single image, over circles on that
 function mode9 () {
+  activity = activityModes.Drawing
   config.currentMode = mode9
+
   target.fill(0)
   target.noStroke()
   target.rect(0, 0, target.width, target.height)
@@ -927,12 +1164,7 @@ function mondrianInner (w, h, x, y, prob, vertical) {
           const c = img.get(x, y + j)
 
           target.fill(c)
-          target.rect(
-            x,
-            y + j,
-            tileWidth,
-            config.stripeSize
-          )
+          target.rect(x, y + j, tileWidth, config.stripeSize)
         }
       } else {
         // Draw vertical strips
@@ -940,21 +1172,11 @@ function mondrianInner (w, h, x, y, prob, vertical) {
           const c = img.get(x + j, y)
 
           target.fill(c)
-          target.rect(
-            x + j,
-            y,
-            config.stripeSize,
-            tileHeight
-          )
+          target.rect(x + j, y, config.stripeSize, tileHeight)
         }
       }
     } else {
-      const strip = img.get(
-        x,
-        y,
-        tileWidth,
-        tileHeight
-      )
+      const strip = img.get(x, y, tileWidth, tileHeight)
       if (tileHeight !== 0 && tileWidth !== 0) {
         target.rect(x, y, tileWidth, tileHeight)
         target.image(strip, x, y)
@@ -981,11 +1203,48 @@ function blendLightest () {
   actionSound.play()
 }
 
-function createCols(url)
-{
-	let slaIndex = url.lastIndexOf("/");
-	let colStr = url.slice(slaIndex + 1);
-	let colArr = colStr.split("-");
-	for(let i = 0; i < colArr.length; i++)colArr[i] = "#" + colArr[i];
-	return colArr;
+function createCols (url) {
+  let slaIndex = url.lastIndexOf('/')
+  let colStr = url.slice(slaIndex + 1)
+  let colArr = colStr.split('-')
+  for (let i = 0; i < colArr.length; i++) colArr[i] = '#' + colArr[i]
+  return colArr
+}
+
+function getDominantColors (img, numColors, colorDistance = 8) {
+  // Resize the image to a smaller size to speed up the analysis
+  img.resize(10, 10)
+
+  // Get the pixel data
+  img.loadPixels()
+  let pixels = img.pixels
+
+  // Create a histogram of the pixel colors
+  let histogram = {}
+  for (let i = 0; i < pixels.length; i += 4) {
+    let r = pixels[i]
+    let g = pixels[i + 1]
+    let b = pixels[i + 2]
+
+    // Group similar colors together
+    let key = `${Math.round(r / colorDistance) * colorDistance},${
+      Math.round(g / colorDistance) * colorDistance
+    },${Math.round(b / colorDistance) * colorDistance}`
+    if (histogram[key]) {
+      histogram[key]++
+    } else {
+      histogram[key] = 1
+    }
+  }
+
+  // Sort the histogram by frequency and get the top numColors colors
+  let sortedColors = Object.entries(histogram)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, numColors)
+    .map(entry => {
+      let [r, g, b] = entry[0].split(',').map(Number)
+      return color(r, g, b)
+    })
+
+  return sortedColors
 }
