@@ -12,7 +12,8 @@ const sounds = [] // array for sound effects
 let actionSound // Sound for actions inclu save, blend & clear uploads
 let images = [] // array for source images
 let cimages = new Images()
-let patImages = [] // patterns and solids
+let patternImages = []
+let solids = []
 const userUploads = [] // buffer array for storing user uploads
 let isUploads = false // Initial boolean value of user load status
 let isHorizontal = true // Initial boolean value of pattern direction
@@ -21,13 +22,17 @@ let img // single image buffer
 let displayCanvas // canvas
 
 let COLS = createCols('https://coolors.co/bcf8ec-aed9e0-9fa0c3-8b687f-7b435b')
-let PALETTE
 
 const activityModes = {
   Drawing: 'draw',
   Gallery: 'gallery'
 }
 let activity = activityModes.Drawing
+
+let addins = {
+  Pattern: 'pattern',
+  Solid: 'solid',
+}
 
 const cropStrategies = ['CENTER', 'TOP-LEFT', 'BOTTOM-RIGHT', 'RANDOM']
 const fragmentStrategies = {
@@ -37,6 +42,7 @@ const fragmentStrategies = {
 }
 
 const config = {
+  addin: addins.Solid,
   mondrianStripes: true,
   mondrianTileSize: 400,
   currentMode: null,
@@ -93,27 +99,47 @@ sketch.setup = () => {
   displayCanvas = createCanvas(500, 500)
   displayCanvas.drop(handleFile)
   target = createGraphics(1000, 1000)
+  makeSolids()
 
   setupButtons()
 
-  pane.addBinding(config, 'mondrianStripes')
-  pane.addBinding(config, 'mondrianTileSize', { min: 100, max: 1000, step: 50 })
-  pane.addBinding(config, 'stripeSize', { min: 1, max: 50, step: 1 })
-  pane.addBinding(config, 'mondrianProb', { min: 0.05, max: 2, step: 0.05 })
-  pane.addBinding(config, 'mondrianProbFactor', {
+  const tab = pane.addTab({
+    pages: [{ title: 'Parameters' }, { title: 'Collage Modes' }]
+  })
+  const parmTab = tab.pages[0]
+  const modeTab = tab.pages[1]
+
+  const btn = parmTab
+    .addButton({
+      title: 'Patterns',
+      label: 'load' // optional
+    })
+    .on('click', () => makePatterns())
+  parmTab.addBinding(config, 'addin', {
+      options: addins
+    })
+  parmTab.addBinding(config, 'mondrianStripes')
+  parmTab.addBinding(config, 'mondrianTileSize', {
+    min: 100,
+    max: 1000,
+    step: 50
+  })
+  parmTab.addBinding(config, 'stripeSize', { min: 1, max: 50, step: 1 })
+  parmTab.addBinding(config, 'mondrianProb', { min: 0.05, max: 2, step: 0.05 })
+  parmTab.addBinding(config, 'mondrianProbFactor', {
     min: 0.1,
     max: 0.95,
     step: 0.05
   })
 
-  pane.addBinding(config, 'outline')
-  pane.addBinding(config, 'circle')
-  pane.addBinding(config, 'outlineWeight', { min: 1, max: 200, step: 1 })
-  pane.addBinding(config, 'stripMin', { min: 50, max: 900, step: 25 })
-  pane.addBinding(config, 'stripMax', { min: 100, max: 1000, step: 25 })
-  pane.addBinding(config, 'stripCount', { min: 1, max: 200, step: 1 })
-  pane.addBinding(config, 'solidProb', { min: 0, max: 1, step: 0.1 })
-  pane
+  parmTab.addBinding(config, 'outline')
+  parmTab.addBinding(config, 'circle')
+  parmTab.addBinding(config, 'outlineWeight', { min: 1, max: 200, step: 1 })
+  parmTab.addBinding(config, 'stripMin', { min: 50, max: 900, step: 25 })
+  parmTab.addBinding(config, 'stripMax', { min: 100, max: 1000, step: 25 })
+  parmTab.addBinding(config, 'stripCount', { min: 1, max: 200, step: 1 })
+  parmTab.addBinding(config, 'solidProb', { min: 0, max: 1, step: 0.1 })
+  parmTab
     .addBlade({
       view: 'list',
       label: 'cropping',
@@ -123,9 +149,19 @@ sketch.setup = () => {
     .on('change', ({ value }) => {
       config.cropStrategy = value
     })
-  pane.addBinding(config, 'fragmentStrategy', {
+  parmTab.addBinding(config, 'fragmentStrategy', {
     options: fragmentStrategies
   })
+
+
+  modes.forEach(m => 
+    modeTab
+    .addButton({
+      title: m[1]
+    })
+    .on('click', () => m[0]())
+
+  )
 
   for (let i = 0, n = images.length; i < n; i++) {
     let croppedImg = squareCrop(images[i])
@@ -134,14 +170,6 @@ sketch.setup = () => {
   }
 
   background(0)
-
-  makeSolids() // not going to be asynchronous w/o web-worker
-
-  // Check if user has supplied photos
-  if (isUploads) {
-    uploadBtn.hide()
-    clearBtn.show()
-  }
 
   displayGallery()
   random(sounds).play()
@@ -165,7 +193,6 @@ function randPattern (t) {
 }
 
 const makeSolids = () => {
-  let solids = []
   let colors = [
     'tomato',
     'powderblue',
@@ -175,21 +202,25 @@ const makeSolids = () => {
     'turquoise'
   ]
   let temp = createGraphics(500, 500)
-  PALETTE = shuffle(COLS, true)
 
-  // // solids = colors.map(color => {
-  // //   temp.background(color)
-  // //   let img = createImage(2000, 2000)
-  // //   img.copy(temp, 0, 0, 2000, 2000, 0, 0, 2000, 2000)
-  // //   return img
-  // // })
-  // // this takes a looooong time
-  // // let's do it asynchronously
-  // // and just not let them be used until complete
+  solids = colors.map(color => {
+    temp.background(color)
+    let img = createImage(2000, 2000)
+    img.copy(temp, 0, 0, 500, 500, 0, 0, 2000, 2000)
+    return img
+  })
+  temp.remove()
+}
+
+const makePatterns = () => {
+  let pats = []
+  let temp = createGraphics(500, 500)
+  const palette = shuffle(COLS, true)
+
   const xSpan = 500
   const ySpan = 500
   for (let i = 0; i < 10; i++) {
-    temp.patternColors(shuffle(PALETTE))
+    temp.patternColors(shuffle(palette))
     temp.pattern(randPattern(100))
     temp.patternAngle((int(random(4)) * PI) / 4)
     temp.push()
@@ -219,12 +250,12 @@ const makeSolids = () => {
     let img = createImage(2000, 2000)
     img.copy(temp, 0, 0, 500, 500, 0, 0, img.width, img.height)
     console.log(`created pattern ${i + 1}`)
-    solids.push(img)
+    pats.push(img)
     temp.pop()
   }
 
   temp.remove()
-  patImages = solids
+  patternImages = pats
   config.patternsReady = true
 }
 
@@ -754,7 +785,7 @@ function mode3 () {
     target.noFill()
     target.rect(0, 0, target.width, target.height)
   }
-  
+
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   target.imageMode(CORNER)
   random(sounds).play()
@@ -874,9 +905,14 @@ function mode5 () {
     target.noFill()
   }
 
+  // these are not strips, they are overall images
+  // but still, not as many showing up as expected
   for (let i = 0; i < config.stripCount; i++) {
-    let cf = coinflip() && config.patternsReady
-    img = cf ? random(patImages) : cimages.random.cropped
+    // let cf = coinflip() && config.patternsReady
+    // img = cf ? random(patternImages) : cimages.random.cropped
+    let cf = coinflip() 
+    img = cf ? random(config.addin === addins.Solid || !config.patternsReady ? solids : patternImages) : cimages.random.cropped
+
 
     const stripW = random(config.stripMin, config.stripMax)
     const stripH = config.circle
