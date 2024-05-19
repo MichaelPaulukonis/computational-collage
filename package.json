@@ -1,15 +1,17 @@
 {
   "name": "p5js-vite",
   "version": "0.1.0",
-  "homepage": "https://<username>.github.io/<repo>/",
+  "homepage": "https://michaelpaulukonis.github.io/computational-collage/",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist",
+    "deploy": "DEPLOY_ENV=GH_PAGES gh-pages -d dist",
+    "publish": "npm run deploy",
     "preview": "vite preview",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "open": "open https://michaelpaulukonis.github.io/computational-collage/"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.0.2",

@@ -3,7 +3,7 @@ const { resolve } = require('path')
 const { defineConfig } = require('vite')
 
 module.exports = defineConfig({
-  base: '/computational-collage/',
+  base: process.env.DEPLOY_ENV === 'GH_PAGES' ? '/computational-collage/' : '',
   plugins: [
   ],
   build: {

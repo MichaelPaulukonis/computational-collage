@@ -81,16 +81,16 @@ const pane = new Pane()
 sketch.preload = () => {
   // Load consistently-named images into an array
   for (let i = 0; i < 6; i++) {
-    images[i] = loadImage('uploads/trees' + i + '.jpg')
+    images[i] = loadImage('./uploads/trees' + i + '.jpg')
   }
   console.log('images loaded')
 
   // Load sounds: Sound from Zapsplat.com
   for (let i = 0; i < 4; i++) {
-    sounds[i] = loadSound('uploads/sound' + i + '.mp3')
+    sounds[i] = loadSound('./uploads/sound' + i + '.mp3')
   }
 
-  actionSound = loadSound('uploads/glassy0.mp3')
+  actionSound = loadSound('./uploads/glassy0.mp3')
   console.log('sounds loaded')
 }
 
