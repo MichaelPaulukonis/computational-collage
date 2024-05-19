@@ -7,10 +7,15 @@
   - hah! what does THAT mean ?!?!?
 - play with blending modes
 - bigger image fragments overlayed
-- "mondrian" mode takes from semi-random part of (original) image
-- Patterns in some of the blocks
+- ~~"mondrian" mode takes from semi-random part of (original) image~~
+- ~~Patterns in some of the blocks~~
 - outline variety?
 - animation of blocks coming and going
+- in gallery, pick which ones are used for collage, which ones are used for background, etc. like picking (one or more )for colors
+- there some UI in another tool I played with, about screens?
+- phase out original buttons
+- add help screen
+- publish to github.io
 
 ## some things to look at
 

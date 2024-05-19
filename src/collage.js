@@ -15,7 +15,6 @@ let cimages = new Images()
 let patternImages = []
 let solids = []
 const userUploads = [] // buffer array for storing user uploads
-let isUploads = false // Initial boolean value of user load status
 let isHorizontal = true // Initial boolean value of pattern direction
 let isBlended = false // Initial bool value of the image blending status
 let img // single image buffer
@@ -31,7 +30,7 @@ let activity = activityModes.Drawing
 
 let addins = {
   Pattern: 'pattern',
-  Solid: 'solid',
+  Solid: 'solid'
 }
 
 const cropStrategies = ['CENTER', 'TOP-LEFT', 'BOTTOM-RIGHT', 'RANDOM']
@@ -116,8 +115,14 @@ sketch.setup = () => {
     })
     .on('click', () => makePatterns())
   parmTab.addBinding(config, 'addin', {
-      options: addins
+    options: addins
+  })
+  parmTab
+    .addButton({
+      title: 'Load solids',
+      label: ''
     })
+    .on('click', () => getColorSolids())
   parmTab.addBinding(config, 'mondrianStripes')
   parmTab.addBinding(config, 'mondrianTileSize', {
     min: 100,
@@ -153,14 +158,12 @@ sketch.setup = () => {
     options: fragmentStrategies
   })
 
-
-  modes.forEach(m => 
+  modes.forEach(m =>
     modeTab
-    .addButton({
-      title: m[1]
-    })
-    .on('click', () => m[0]())
-
+      .addButton({
+        title: m[1]
+      })
+      .on('click', () => m[0]())
   )
 
   for (let i = 0, n = images.length; i < n; i++) {
@@ -192,15 +195,16 @@ function randPattern (t) {
   return random(ptArr)
 }
 
-const makeSolids = () => {
-  let colors = [
-    'tomato',
-    'powderblue',
-    'yellowgreen',
-    'white',
-    'salmon',
-    'turquoise'
-  ]
+const getColorSolids = () => {
+  const img = cimages.images[config.selectedIndex].original
+  const colors = getDominantColors(img, 5, 30)
+  makeSolids(colors)
+}
+
+const makeSolids = (colors = null) => {
+  colors = colors
+    ? colors
+    : ['tomato', 'powderblue', 'yellowgreen', 'white', 'salmon', 'turquoise']
   let temp = createGraphics(500, 500)
 
   solids = colors.map(color => {
@@ -485,7 +489,6 @@ function dropFiles () {
 // Handle file uploads
 function handleFile (file) {
   if (file.type === 'image') {
-    isUploads = true
     loadImage(file.data, img => {
       let croppedImg = squareCrop(img)
       croppedImg.resize(target.width, 0)
@@ -512,7 +515,6 @@ const duplicateRecrop = () => {
 function clearUploads () {
   userUploads.length = 0
   cimages.clear()
-  isUploads = false
   clearBtn.hide()
   uploadBtn.show()
   actionSound.play()
@@ -523,7 +525,6 @@ const saver = (canvas, name) => {
   canvas.toBlob(blob => saveAs(blob, name))
 }
 
-// Download current canvas
 function download () {
   // actionSound.play();
   const name = namer() + '.png'
@@ -730,13 +731,9 @@ function mode3 () {
 
   target.imageMode(CENTER)
   // TODO: get random croppings instead of one cropping
-  // TODO: need a smaller version
   const img1 = cimages.random.cropped.get()
-  // img1.resize(200, 0)
   const img2 = cimages.random.cropped.get()
-  // img2.resize(200, 0)
   const img3 = cimages.random.cropped.get()
-  // img3.resize(200, 0)
 
   const items1 = generateCollageItems(
     img1,
@@ -775,7 +772,8 @@ function mode3 () {
     0.05
   )
 
-  // target.background('white')
+  // masks will have to go in here
+  // unless.... in generate?
   drawCollageitems(items1)
   drawCollageitems(items2)
   drawCollageitems(items3)
@@ -832,7 +830,6 @@ function drawCollageitems (layerItems) {
     target.noFill()
   }
 
-  // TODO: rewrite w/o scaling....
   for (var i = 0; i < layerItems.length; i++) {
     const img = layerItems[i].image
     target.push()
@@ -841,7 +838,6 @@ function drawCollageitems (layerItems) {
       target.height / 2 + sin(layerItems[i].a) * layerItems[i].l
     )
     target.rotate(layerItems[i].rotation)
-    // target.scale(layerItems[i].scaling)
     target.image(
       layerItems[i].image,
       0,
@@ -910,9 +906,14 @@ function mode5 () {
   for (let i = 0; i < config.stripCount; i++) {
     // let cf = coinflip() && config.patternsReady
     // img = cf ? random(patternImages) : cimages.random.cropped
-    let cf = coinflip() 
-    img = cf ? random(config.addin === addins.Solid || !config.patternsReady ? solids : patternImages) : cimages.random.cropped
-
+    let cf = coinflip()
+    img = cf
+      ? random(
+          config.addin === addins.Solid || !config.patternsReady
+            ? solids
+            : patternImages
+        )
+      : cimages.random.cropped
 
     const stripW = random(config.stripMin, config.stripMax)
     const stripH = config.circle
