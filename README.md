@@ -15,7 +15,8 @@
 - there some UI in another tool I played with, about screens?
 - phase out original buttons
 - add help screen
-- publish to github.io
+- ~~publish to github.io~~
+- outlines/masks into CollageImage class?
 
 ## some things to look at
 

@@ -687,8 +687,8 @@ function mode2 () {
     img = cimages.random.cropped
     const stripW = random(config.stripMin, config.stripMax)
     const stripH = random(config.stripMin, config.stripMax)
-    const stripX = random(stripW / -2, img.width)
-    const stripY = random(stripH / -2, img.height)
+    const stripX = random(stripW / -2, target.width)
+    const stripY = random(stripH / -2, target.height)
     const strip = img.get(stripX, stripY, stripW, stripH)
 
     if (config.circle) {
@@ -867,8 +867,8 @@ function mode4 () {
   for (let i = 0; i < 900; i++) {
     img = cimages.random.cropped
 
-    const stripX = random(img.width)
-    const stripY = random(img.height)
+    const stripX = random(target.width)
+    const stripY = random(target.height)
     const stripW = random(40, 50)
     const stripH = random(40, 50)
     if (random(0, 1) > 0.3) {
@@ -904,8 +904,6 @@ function mode5 () {
   // these are not strips, they are overall images
   // but still, not as many showing up as expected
   for (let i = 0; i < config.stripCount; i++) {
-    // let cf = coinflip() && config.patternsReady
-    // img = cf ? random(patternImages) : cimages.random.cropped
     let cf = coinflip()
     img = cf
       ? random(
@@ -919,8 +917,8 @@ function mode5 () {
     const stripH = config.circle
       ? stripW
       : random(config.stripMin, config.stripMax)
-    const stripX = random(stripW / -2, img.width)
-    const stripY = random(stripH / -2, img.height)
+    const stripX = Math.round(random(stripW / -2, target.width))
+    const stripY = Math.round(random(stripH / -2, target.height))
 
     let strip
     switch (config.fragmentStrategy) {
@@ -1059,8 +1057,8 @@ function mode8 () {
   for (let i = 0; i < 200; i++) {
     img = cimages.random.cropped
 
-    const stripX = random(img.width)
-    const stripY = random(img.height)
+    const stripX = random(target.width)
+    const stripY = random(target.height)
     const stripW = random(50, 150)
     const stripH = random(50, 150)
 
