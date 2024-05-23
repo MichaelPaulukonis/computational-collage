@@ -774,9 +774,9 @@ function mode3 () {
 
   // masks will have to go in here
   // unless.... in generate?
-  drawCollageitems(items1)
-  drawCollageitems(items2)
-  drawCollageitems(items3)
+  drawCollageitems(items1, config)
+  drawCollageitems(items2, config)
+  drawCollageitems(items3, config)
   if (config.outline) {
     target.strokeWeight(config.outlineWeight)
     target.stroke('black')
@@ -809,6 +809,20 @@ function generateCollageItems (
     collageItem.scaling = random(scaleStart, scaleEnd)
     collageItem.rotation =
       collageItem.a + HALF_PI + random(rotationStart, rotationEnd)
+
+    if (config.circle) {
+      let customMask = createGraphics(img.width, img.height)
+      customMask.noStroke()
+      customMask.fill(255)
+      customMask.circle(
+        img.width / 2,
+        img.height / 2,
+        Math.min(img.height, img.width)
+      )
+      img.mask(customMask)
+      customMask.remove()
+    }
+
     layerItems.push(collageItem)
   }
   return layerItems
@@ -822,10 +836,10 @@ function CollageItem (image) {
   this.image = image
 }
 
-function drawCollageitems (layerItems) {
+function drawCollageitems (layerItems, params) {
   target.strokeWeight(0)
-  if (config.outline) {
-    target.strokeWeight(config.outlineWeight)
+  if (params.outline) {
+    target.strokeWeight(params.outlineWeight)
     target.stroke('black')
     target.noFill()
   }
@@ -838,6 +852,8 @@ function drawCollageitems (layerItems) {
       target.height / 2 + sin(layerItems[i].a) * layerItems[i].l
     )
     target.rotate(layerItems[i].rotation)
+    // TODO: multiple masks crash my computer
+    // try https://stackoverflow.com/a/71061573/41153
     target.image(
       layerItems[i].image,
       0,
@@ -845,12 +861,20 @@ function drawCollageitems (layerItems) {
       img.width * layerItems[i].scaling,
       img.height * layerItems[i].scaling
     )
-    target.rect(
-      (-img.width * layerItems[i].scaling) / 2,
-      (-img.height * layerItems[i].scaling) / 2,
-      img.width * layerItems[i].scaling,
-      img.height * layerItems[i].scaling
-    )
+    if (config.circle) {
+      target.circle(
+        0,
+        0,
+        Math.min(img.height, img.width)  * layerItems[i].scaling
+      )
+    } else {
+      target.rect(
+        (-img.width * layerItems[i].scaling) / 2,
+        (-img.height * layerItems[i].scaling) / 2,
+        img.width * layerItems[i].scaling,
+        img.height * layerItems[i].scaling
+      )
+    }
 
     target.pop()
   }
