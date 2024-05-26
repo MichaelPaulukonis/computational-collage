@@ -789,6 +789,9 @@ function mode3 () {
   random(sounds).play()
 }
 
+// take in array of images
+// never do the circle thing
+// outline may have to go away?
 function generateCollageItems (
   img,
   count,
