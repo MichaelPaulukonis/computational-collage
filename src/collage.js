@@ -14,19 +14,30 @@ let images = [] // array for source images
 let cimages = new Images()
 let patternImages = []
 let solids = []
-const userUploads = [] // buffer array for storing user uploads
 let isHorizontal = true // Initial boolean value of pattern direction
 let isBlended = false // Initial bool value of the image blending status
-let img // single image buffer
+let img // single image buffer (work on removing this global)
 let displayCanvas // canvas
 
+// parses the URL to make a color scheme (this is a holdover from patterns)
+// I like the idea of the patterns, but takes so long to generate
+// but I don't want fixed colors ugh. Maybe .... done w/ shapes, instead?
+// hrm. complicated, but fast
 let COLS = createCols('https://coolors.co/bcf8ec-aed9e0-9fa0c3-8b687f-7b435b')
 
 const activityModes = {
-  Drawing: 'draw',
-  Gallery: 'gallery'
+  DRAWING: 'draw',
+  GALLERY: 'gallery',
+  CUTOUT: 'cutout'
 }
-let activity = activityModes.Drawing
+let activity = activityModes.DRAWING
+
+const cutoutModes = {
+  DISPLAY: 'display',
+  SELECTING: 'selecting',
+  NOTACTIVE: 'not_active'
+}
+let cutoutMode = cutoutModes.NOTACTIVE
 
 let addins = {
   Pattern: 'pattern',
@@ -75,7 +86,67 @@ const modes = [
   [mode9, 'Concentric circle splashes']
 ]
 
-let target // graphics object at full size
+let interfaceSW = 3;
+// Define a Shape class to hold a collection of Vectors
+class Shape {
+  constructor (img) {
+    this.vectors = []
+    this.cutout = null
+    this.ctx = target
+    this.img = img
+  }
+
+  addVector (x, y) {
+    this.vectors.push(new p5.Vector(x, y))
+  }
+
+  draw () {
+    this.ctx.strokeJoin(ROUND)
+    // interfaceSW = global
+    this.ctx.strokeWeight(interfaceSW)
+    this.ctx.stroke(0)
+    this.ctx.noFill()
+    this.ctx.beginShape()
+    for (let v of this.vectors) {
+      this.ctx.vertex(v.x, v.y)
+    }
+    // global
+    if (cutoutMode === cutoutModes.SELECTING) {
+      this.ctx.vertex(mouseX, mouseY)
+    }
+    this.ctx.endShape(CLOSE)
+
+    this.ctx.beginShape()
+    this.ctx.strokeWeight(interfaceSW * 5)
+
+    for (let v of this.vectors) {
+      this.ctx.point(v.x, v.y)
+      this.ctx.point(mouseX, mouseY)
+    }
+    this.ctx.endShape(CLOSE)
+  }
+
+  // better name
+  createCutout () {
+    this.ctx.clear()
+    let myShape = createGraphics(400, 400)
+    myShape.fill(204)
+    myShape.strokeWeight(0)
+    myShape.beginShape()
+    for (let v of this.vectors) {
+      myShape.vertex(v.x, v.y)
+    }
+    myShape.endShape(CLOSE)
+    myShape.drawingContext.globalCompositeOperation = 'source-in'
+
+    myShape.image(this.img, 0, 0)
+    this.cutout = myShape
+  }
+}
+
+let cutout = null
+
+let target // (hidden) graphics object at full size
 const pane = new Pane()
 
 sketch.preload = () => {
@@ -383,7 +454,18 @@ function setupButtons () {
 }
 
 sketch.draw = () => {
-  if (activity === activityModes.Gallery) {
+  if (activity === activityModes.CUTOUT) {
+    if (cutoutMode === cutoutModes.SELECTING) {
+      target.image(cimages.images[config.selectedIndex].cropped, 0, 0)
+      cutout.draw()
+    } else {
+      target.clear()
+      target.image(cutout.cutout, mouseX, mouseY)
+    }
+    clear()
+    image(target, 0, 0)
+  } else {
+    cursor()
   }
 }
 
@@ -398,13 +480,29 @@ const mouseWithinCanvas = () => {
 
 // this is START of press
 sketch.mousePressed = () => {
-  if (activity === activityModes.Gallery && mouseWithinCanvas()) {
+  if (activity === activityModes.GALLERY && mouseWithinCanvas()) {
     const tileSize = displayCanvas.width / 3
     let clickedIndex = floor(mouseX / tileSize) + floor(mouseY / tileSize) * 3
     if (clickedIndex < cimages.images.length) {
       config.selectedIndex = clickedIndex
     }
     displayGallery()
+  } else if (activity === activityModes.CUTOUT) {
+    if (cutoutMode === cutoutModes.SELECTING && mouseWithinCanvas()) {
+      noCursor()
+      cutout.addVector(mouseX, mouseY)
+    }
+  }
+}
+
+sketch.doubleClicked = () => {
+  if (activity === activityModes.CUTOUT) {
+    if (cutoutMode === cutoutModes.SELECTING && mouseWithinCanvas()) {
+    cutout.addVector(mouseX, mouseY);
+    cutout.createCutout();
+    cutoutMode = cutoutModes.DISPLAY
+    cursor()
+    }
   }
 }
 
@@ -412,7 +510,7 @@ sketch.keyTyped = () => {
   // perform action invariant of activity
   if ('0123456789'.includes(key)) {
     modes[key][0]()
-  } else if (activity === activityModes.Gallery) {
+  } else if (activity === activityModes.GALLERY) {
     if (key === 'x') {
       deleteImage(config.selectedIndex)
     } else if (key === 'c') {
@@ -420,7 +518,10 @@ sketch.keyTyped = () => {
       namer = filenamer(datestring())
     }
   } else {
-    if (key === 's') {
+    if (key === 'c') {
+      activity = activityModes.CUTOUT
+      displayCutout()
+    } else if (key === 's') {
       download()
     } else if (key === 'a') {
       config.circle = !config.circle
@@ -513,7 +614,6 @@ const duplicateRecrop = () => {
 
 // Clear upload files
 function clearUploads () {
-  userUploads.length = 0
   cimages.clear()
   clearBtn.hide()
   uploadBtn.show()
@@ -532,9 +632,21 @@ function download () {
   console.log('downloaded ' + name)
 }
 
+const displayCutout = () => {
+  const img = cimages.images[config.selectedIndex].cropped
+  cutout = new Shape(img)
+  activity = activityModes.CUTOUT
+  cutoutMode = cutoutModes.SELECTING
+
+  // TODO: use original, and scroll it around.
+  // although will play heck with the points. hrm.
+  target.clear()
+  target.image(img, 0, 0)
+}
+
 // Show input image gallery (no more than 9 for speed)
 const displayGallery = () => {
-  activity = activityModes.Gallery
+  activity = activityModes.GALLERY
   config.currentMode = mode0
   const tileCountX = 3
   const tileCountY = 3
@@ -636,7 +748,7 @@ function mode0 () {
 
 // Full-length strips
 function mode1 () {
-  activity = activityModes.Drawing
+  activity = activityModes.DRAWING
   config.currentMode = mode1
   if (isHorizontal) {
     for (let y = 0; y < target.height; y += 10) {
@@ -672,7 +784,7 @@ function mode1 () {
 
 // Collaging random chunks
 function mode2 () {
-  activity = activityModes.Drawing
+  activity = activityModes.DRAWING
   config.currentMode = mode2
 
   target.image(cimages.random.cropped, 0, 0)
@@ -724,7 +836,7 @@ function mode2 () {
 // discarded original
 // now based on /Users/michaelpaulukonis/projects/Code-Package-p5.js/01_P/P_4_2_1_02
 function mode3 () {
-  activity = activityModes.Drawing
+  activity = activityModes.DRAWING
   config.currentMode = mode3
 
   target.image(cimages.random.cropped, 0, 0)
@@ -883,7 +995,7 @@ function drawCollageitems (layerItems, params) {
 
 // Floating pixels
 function mode4 () {
-  activity = activityModes.Drawing
+  activity = activityModes.DRAWING
   config.currentMode = mode4
 
   target.fill(0)
@@ -914,7 +1026,7 @@ function mode4 () {
 // this is an elaboration of mode2/mode7
 // try to integrate mode7 and make these more flexible?
 function mode5 () {
-  activity = activityModes.Drawing
+  activity = activityModes.DRAWING
   config.currentMode = mode5
 
   const coinflip = () => random() < config.solidProb
@@ -1006,7 +1118,7 @@ function mode5 () {
 
 // Horizontal free strips
 function mode6 () {
-  activity = activityModes.Drawing
+  activity = activityModes.DRAWING
   config.currentMode = mode6
 
   target.noStroke()
@@ -1047,7 +1159,7 @@ function mode6 () {
 
 // Mondrian stripes
 function mode7 () {
-  activity = activityModes.Drawing
+  activity = activityModes.DRAWING
   config.currentMode = mode7
 
   target.noStroke()
@@ -1067,7 +1179,7 @@ function mode7 () {
 
 // Horizontally stretched
 function mode8 () {
-  activity = activityModes.Drawing
+  activity = activityModes.DRAWING
   config.currentMode = mode8
 
   target.noStroke()
@@ -1101,7 +1213,7 @@ function mode8 () {
 // Concentric circle splashes
 // variation ideas: single image, over circles on that
 function mode9 () {
-  activity = activityModes.Drawing
+  activity = activityModes.DRAWING
   config.currentMode = mode9
 
   target.fill(0)
