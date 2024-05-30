@@ -45,6 +45,7 @@ const config = {
   mondrianStripes: true,
   mondrianTileSize: 400,
   currentMode: null,
+  galleryTileWidth: 5,
   stripeSize: 1,
   outline: true,
   circle: false,
@@ -399,8 +400,8 @@ const mouseWithinCanvas = () => {
 // this is START of press
 sketch.mousePressed = () => {
   if (activity === activityModes.Gallery && mouseWithinCanvas()) {
-    const tileSize = displayCanvas.width / 3
-    let clickedIndex = floor(mouseX / tileSize) + floor(mouseY / tileSize) * 3
+    const tileSize = displayCanvas.width / config.galleryTileWidth
+    let clickedIndex = floor(mouseX / tileSize) + floor(mouseY / tileSize) * config.galleryTileWidth
     if (clickedIndex < cimages.images.length) {
       config.selectedIndex = clickedIndex
     }
@@ -536,8 +537,8 @@ function download () {
 const displayGallery = () => {
   activity = activityModes.Gallery
   config.currentMode = mode0
-  const tileCountX = 3
-  const tileCountY = 3
+  const tileCountX = config.galleryTileWidth
+  const tileCountY = config.galleryTileWidth
 
   const tileWidth = displayCanvas.width / tileCountX
   const tileHeight = displayCanvas.height / tileCountY
@@ -567,50 +568,6 @@ const displayGallery = () => {
           strokeWeight(4)
           rect(gridX * tileWidth, gridY * tileHeight, tileWidth, tileWidth)
           displayCanvas.fill('black')
-          noStroke()
-        }
-      }
-      i++
-    }
-  }
-}
-
-// Show input image gallery (no more than 9 for speed)
-const displayGallery_other = () => {
-  const tileCountX = 3
-  const tileCountY = 3
-
-  const tileWidth = cnvs.width / tileCountX
-  const tileHeight = cnvs.height / tileCountY
-  background('white')
-  fill('black')
-  noStroke()
-
-  let i = 0
-  for (let gridY = 0; gridY < tileCountY; gridY++) {
-    for (let gridX = 0; gridX < tileCountX; gridX++) {
-      if (i >= elementImages.length) {
-        text(
-          'Drop to upload',
-          gridX * tileWidth + 20,
-          gridY * tileHeight + tileWidth / 2
-        )
-      } else {
-        const tmp = elementImages[i].get()
-        tmp.resize(0, tileHeight)
-        image(tmp, gridX * tileWidth, gridY * tileHeight)
-
-        if (sourceIndex === i) {
-          noFill()
-          stroke('green')
-          strokeWeight(4)
-          rect(
-            gridX * tileWidth + tileWidth / 2,
-            gridY * tileHeight + tileWidth / 2,
-            tileWidth,
-            tileWidth
-          )
-          fill('black')
           noStroke()
         }
       }
@@ -721,22 +678,68 @@ function mode2 () {
   random(sounds).play()
 }
 
+// MOSTLY unique
+const getUniqueSets = (array, counts) => {
+  let original = [...array]
+  let sets = counts.map(count => {
+    // TODO: ah, this won't work.
+    // maybe we need to shuffle the array
+    // and then pick the first count items
+    // but it's circular, or something?
+    // OTOH, taking random and shuffling are the same thing
+    // or ARE THEY
+  })
+}
+
+function getUniqueRandomItems (array, count) {
+  // Make a copy of the original array to avoid modifying it
+  let original = [...array]
+
+  // Initialize an array to store the random items
+  let result = []
+
+  // Loop until we have the desired number of unique items
+  while (result.length < count && array.length > 0) {
+    // Get a random index from the remaining items
+    let randomIndex = Math.floor(Math.random() * array.length)
+
+    // Add the item at that index to the result array
+    result.push(array[randomIndex])
+
+    // Remove the item from the remaining items
+    array.splice(randomIndex, 1)
+    if (array.length === 0) {
+      // If we've run out of items, shuffle the original array
+      array = [...original]
+    }
+  }
+
+  return result
+}
+
 // discarded original
 // now based on /Users/michaelpaulukonis/projects/Code-Package-p5.js/01_P/P_4_2_1_02
 function mode3 () {
   activity = activityModes.Drawing
   config.currentMode = mode3
 
-  target.image(cimages.random.cropped, 0, 0)
+  // target.image(cimages.random.cropped, 0, 0)
+  target.background(255)
 
   target.imageMode(CENTER)
   // TODO: get random croppings instead of one cropping
-  const img1 = cimages.random.cropped.get()
-  const img2 = cimages.random.cropped.get()
-  const img3 = cimages.random.cropped.get()
+  // const img1 = cimages.random.cropped.get()
+  // const img2 = cimages.random.cropped.get()
+  // const img3 = cimages.random.cropped.get()
+
+  let imgs = [...cimages.images]
+  // "original" sketch had counts of 11, 5, 22
+  const col1 = [imgs[0]]
+  const col2 = [imgs[1], imgs[2]]
+  const col3 = imgs.slice(3)
 
   const items1 = generateCollageItems(
-    img1,
+    col1,
     random(10, 30),
     0,
     target.height / 2,
@@ -748,7 +751,7 @@ function mode3 () {
     0
   )
   const items2 = generateCollageItems(
-    img2,
+    col2,
     random(15, 40),
     0,
     target.height * 0.15,
@@ -760,7 +763,7 @@ function mode3 () {
     PI / 65
   )
   const items3 = generateCollageItems(
-    img3,
+    col3,
     random(10, 45),
     0,
     target.height * 0.66,
@@ -790,7 +793,7 @@ function mode3 () {
 }
 
 function generateCollageItems (
-  img,
+  imgs,
   count,
   angle,
   length,
@@ -802,14 +805,19 @@ function generateCollageItems (
   rotationEnd
 ) {
   var layerItems = []
-  for (var j = 0; j < count; j++) {
-    var collageItem = new CollageItem(img)
-    collageItem.a = angle + random(-rangeA / 2, rangeA / 2)
-    collageItem.l = length + random(-rangeL / 2, rangeL / 2)
-    collageItem.scaling = random(scaleStart, scaleEnd)
-    collageItem.rotation =
-      collageItem.a + HALF_PI + random(rotationStart, rotationEnd)
-    layerItems.push(collageItem)
+  let index = 0
+  for (let i = 0; i < count; i++) {
+    for (var j = 0; j < count; j++) {
+      var collageItem = new CollageItem(imgs[index].original)
+      collageItem.a = angle + random(-rangeA / 2, rangeA / 2)
+      collageItem.l = length + random(-rangeL / 2, rangeL / 2)
+      collageItem.scaling = random(scaleStart, scaleEnd)
+      collageItem.rotation =
+        collageItem.a + HALF_PI + random(rotationStart, rotationEnd)
+      layerItems.push(collageItem)
+      index++
+      index = index < imgs.length ? index : 0
+    }
   }
   return layerItems
 }
