@@ -40,13 +40,11 @@ const fragmentStrategies = {
   RANDOM: 'random'
 }
 
-let resetCircularLayers = () => ({
-    1: [],
-    2: [],
-    3: []
-  })
+let resetCircularLayers = () => [[], [], []]
 
+// combine these?
 let circularLayers = resetCircularLayers()
+let circularCollections = [[], [], []]
 
 const config = {
   addin: addins.Solid,
@@ -107,7 +105,7 @@ sketch.preload = () => {
 sketch.setup = () => {
   displayCanvas = createCanvas(500, 500)
   displayCanvas.drop(handleFile)
-  target = createGraphics(displayCanvas.width * 2, displayCanvas.height * 2)
+  target = createGraphics(displayCanvas.width * 4, displayCanvas.height * 4)
   makeSolids()
 
   setupButtons()
@@ -465,10 +463,12 @@ sketch.keyPressed = () => {
 sketch.keyTyped = () => {
   // perform action invariant of activity
   const shifted = keyIsDown(SHIFT)
-  if (config.currentMode === mode3 && shifted) {
-    // TODO: redraw 1,2,3 rings
-    // will need to expose funcs and arrays
-    // and then have a way to clear them when NOT in mode3
+  if (config.currentMode === mode3 && '!@#'.includes(key)) {
+    const downShiftVal = '!@#'.indexOf(key)
+    circularLayers[downShiftVal] = layerGen[`genLayer${downShiftVal}`](
+      circularCollections[downShiftVal]
+    )()
+    drawMode3(circularLayers)
   } else if ('0123456789'.includes(key)) {
     modes[key][0]()
   } else if (activity === activityModes.Gallery) {
@@ -800,61 +800,80 @@ function splitArrayByRatio (arr, ratios) {
   return result
 }
 
+const layerGen = {
+  genLayer0: null,
+  genLayer1: null,
+  genLayer2: null
+}
+
+layerGen.genLayer0 = col => {
+  return () =>
+    generateCollageItems(
+      col,
+      int(random(2, 10)),
+      0,
+      target.height / 2,
+      PI * 5,
+      target.height,
+      0.1,
+      0.5,
+      0,
+      0
+    )
+}
+
+layerGen.genLayer1 = col => {
+  return () =>
+    generateCollageItems(
+      col,
+      int(random(10, 25)),
+      0,
+      target.height / 2,
+      PI * 5,
+      target.height,
+      0.1,
+      random(0.3, 0.8),
+      -PI / 6,
+      PI / 65
+    )
+}
+
+layerGen.genLayer2 = col => {
+  return () =>
+    generateCollageItems(
+      col,
+      int(random(10, 25)),
+      0,
+      target.height / 2,
+      PI * 5,
+      target.height,
+      0.1,
+      random(0.2, 0.5),
+      -0.05,
+      0.05
+    )
+}
+
 // discarded original
 // now based on /Users/michaelpaulukonis/projects/Code-Package-p5.js/01_P/P_4_2_1_02
 function mode3 () {
   activity = activityModes.Drawing
   config.currentMode = mode3
 
+  circularCollections = splitArrayByRatio(cimages.images, [11, 5, 22])
+
+  circularLayers[0] = layerGen.genLayer0(circularCollections[0])()
+  circularLayers[1] = layerGen.genLayer1(circularCollections[1])()
+  circularLayers[2] = layerGen.genLayer2(circularCollections[2])()
+
+  drawMode3(circularLayers)
+}
+
+const drawMode3 = layers => {
   // I keep changing my mind on this
-  // target.background(255)
-
+  target.background(255)
   target.imageMode(CENTER)
-
-  let imgs = [...cimages.images]
-  const [col1, col2, col3] = splitArrayByRatio(imgs, [11, 5, 22])
-  // something is waaaaaaay off in display
-
-  const items1 = generateCollageItems(
-    col1,
-    int(random(2, 10)),
-    0,
-    target.height / 2,
-    PI * 5,
-    target.height,
-    0.1,
-    0.5,
-    0,
-    0
-  )
-  const items2 = generateCollageItems(
-    col2,
-    int(random(10, 25)),
-    0,
-    target.height / 2,
-    PI * 5,
-    target.height,
-    0.1,
-    random(0.3, 0.8),
-    -PI / 6,
-    PI / 65
-  )
-  const items3 = generateCollageItems(
-    col3,
-    int(random(10, 25)),
-    0,
-    target.height / 2,
-    PI * 5,
-    target.height,
-    0.1,
-    random(0.2, 0.5),
-    -0.05,
-    0.05
-  )
-
-  drawCollageitems(items1)
-  drawCollageitems(items2)
-  drawCollageitems(items3)
+  for (let l of layers) drawCollageitems(l)
   if (config.outline) {
     target.strokeWeight(config.outlineWeight)
     target.stroke('black')
@@ -901,20 +920,6 @@ function CollageItem (image) {
   this.rotation = 0
   this.scaling = 1
   this.image = image
-}
-
-function drawCollageitems_orig (layerItems) {
-  for (var i = 0; i < layerItems.length; i++) {
-    target.push()
-    target.translate(
-      target.width / 2 + cos(layerItems[i].a) * layerItems[i].l,
-      target.height / 2 + sin(layerItems[i].a) * layerItems[i].l
-    )
-    target.rotate(layerItems[i].rotation)
-    target.scale(layerItems[i].scaling)
-    target.image(layerItems[i].image, 0, 0)
-    target.pop()
-  }
 }
 
 function drawCollageitems (layerItems) {
