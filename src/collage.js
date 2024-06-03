@@ -40,6 +40,14 @@ const fragmentStrategies = {
   RANDOM: 'random'
 }
 
+let resetCircularLayers = () => ({
+    1: [],
+    2: [],
+    3: []
+  })
+
+let circularLayers = resetCircularLayers()
+
 const config = {
   addin: addins.Solid,
   mondrianStripes: true,
@@ -412,54 +420,28 @@ sketch.mousePressed = () => {
   }
 }
 
-const handleKeyInput = () => {
-  if (activity === activityModes.Gallery) {
-    if (keyIsDown(SHIFT)) {
-      if (keyIsDown(UP_ARROW)) {
-        config.galleryOffset -= config.galleryTileWidth
-        config.galleryOffset =
-          config.galleryOffset < 0 ? 0 : config.galleryOffset
-      } else if (keyIsDown(DOWN_ARROW)) {
-        config.galleryOffset += config.galleryTileWidth
-        config.galleryOffset =
-          config.galleryOffset > cimages.images.length - config.galleryTileWidth
-            ? config.galleryOffset - config.galleryTileWidth
-            : config.galleryOffset
-      }
-    } else {
-      if (keyIsDown(RIGHT_ARROW)) {
-        config.selectedIndex += 1
-        console.log('right)')
-      } else if (keyIsDown(LEFT_ARROW)) {
-        config.selectedIndex -= 1
-        console.log('left)')
-      } else if (keyIsDown(UP_ARROW)) {
-        config.selectedIndex -= config.galleryTileWidth
-      } else if (keyIsDown(DOWN_ARROW)) {
-        config.selectedIndex += config.galleryTileWidth
-      }
-    }
-    displayGallery()
-  }
-}
-
 sketch.keyPressed = () => {
   if (activity === activityModes.Gallery) {
+    // off-screen movement is better guarded against, now
+    // it would be NICE if simple up/down/left/right
+    // also modified offsets, if required
+    // as it is now, things get .... weird, or do nothing.
     if (keyIsDown(SHIFT)) {
+      const origOffset = config.galleryOffset
       if (keyCode === UP_ARROW) {
         config.galleryOffset -= config.galleryTileWidth
         config.galleryOffset =
-          config.galleryOffset < 0 ? 0 : config.galleryOffset
+          config.galleryOffset < 0 ? origOffset : config.galleryOffset
       } else if (keyCode === DOWN_ARROW) {
         config.galleryOffset += config.galleryTileWidth
         config.galleryOffset =
           config.galleryOffset > cimages.images.length - config.galleryTileWidth
-            ? config.galleryOffset - config.galleryTileWidth
+            ? origOffset
             : config.galleryOffset
       }
     } else {
-      // also need to take into account gallery offset
       // so does clicking on image, too
+      const origIndex = config.selectedIndex
       if (keyCode === RIGHT_ARROW) {
         config.selectedIndex += 1
       } else if (keyCode === LEFT_ARROW) {
@@ -470,10 +452,10 @@ sketch.keyPressed = () => {
         config.selectedIndex += config.galleryTileWidth
       }
       config.selectedIndex =
-        config.selectedIndex <= 0
-          ? 0
-          : config.selectedIndex >= cimages.images.length
-          ? cimages.images.length - 1
+        config.selectedIndex < 0
+          ? origIndex
+          : config.selectedIndex + config.galleryOffset >= cimages.images.length
+          ? origIndex
           : config.selectedIndex
     }
     displayGallery()
@@ -482,7 +464,12 @@ sketch.keyPressed = () => {
 
 sketch.keyTyped = () => {
   // perform action invariant of activity
-  if ('0123456789'.includes(key)) {
+  const shifted = keyIsDown(SHIFT)
+  if (config.currentMode === mode3 && shifted) {
+    // TODO: redraw 1,2,3 rings
+    // will need to expose funcs and arrays
+    // and then have a way to clear them when NOT in mode3
+  } else if ('0123456789'.includes(key)) {
     modes[key][0]()
   } else if (activity === activityModes.Gallery) {
     if (key === 'x') {
