@@ -3,8 +3,8 @@ import '../css/collage.style.css'
 import { Pane } from 'tweakpane'
 import { sketch } from 'p5js-wrapper'
 import 'p5js-wrapper/sound'
-import './p5.pattern.js'
-import { PTN } from './p5.pattern.js'
+// import './p5.pattern.js'
+// import { PTN } from './p5.pattern.js'
 import { datestring, filenamer } from './filelib'
 import { CollageImage, Images } from './images'
 
@@ -40,14 +40,23 @@ const fragmentStrategies = {
   RANDOM: 'random'
 }
 
+let resetCircularLayers = () => ({
+    1: [],
+    2: [],
+    3: []
+  })
+
+let circularLayers = resetCircularLayers()
+
 const config = {
   addin: addins.Solid,
   mondrianStripes: true,
   mondrianTileSize: 400,
   currentMode: null,
-  galleryTileWidth: 5,
+  galleryTileWidth: 3,
+  galleryOffset: 0,
   stripeSize: 1,
-  outline: true,
+  outline: false,
   circle: false,
   outlineWeight: 50,
   stripMin: 100,
@@ -98,7 +107,7 @@ sketch.preload = () => {
 sketch.setup = () => {
   displayCanvas = createCanvas(500, 500)
   displayCanvas.drop(handleFile)
-  target = createGraphics(1000, 1000)
+  target = createGraphics(displayCanvas.width * 2, displayCanvas.height * 2)
   makeSolids()
 
   setupButtons()
@@ -167,7 +176,7 @@ sketch.setup = () => {
       .on('click', () => m[0]())
   )
 
-  for (let i = 0, n = images.length; i < n; i++) {
+  for (let i = 0; i < images.length; i++) {
     let croppedImg = squareCrop(images[i])
     croppedImg.resize(target.width, 0)
     cimages.addImage(new CollageImage(images[i], croppedImg))
@@ -401,7 +410,9 @@ const mouseWithinCanvas = () => {
 sketch.mousePressed = () => {
   if (activity === activityModes.Gallery && mouseWithinCanvas()) {
     const tileSize = displayCanvas.width / config.galleryTileWidth
-    let clickedIndex = floor(mouseX / tileSize) + floor(mouseY / tileSize) * config.galleryTileWidth
+    let clickedIndex =
+      floor(mouseX / tileSize) +
+      floor(mouseY / tileSize) * config.galleryTileWidth
     if (clickedIndex < cimages.images.length) {
       config.selectedIndex = clickedIndex
     }
@@ -409,13 +420,60 @@ sketch.mousePressed = () => {
   }
 }
 
+sketch.keyPressed = () => {
+  if (activity === activityModes.Gallery) {
+    // off-screen movement is better guarded against, now
+    // it would be NICE if simple up/down/left/right
+    // also modified offsets, if required
+    // as it is now, things get .... weird, or do nothing.
+    if (keyIsDown(SHIFT)) {
+      const origOffset = config.galleryOffset
+      if (keyCode === UP_ARROW) {
+        config.galleryOffset -= config.galleryTileWidth
+        config.galleryOffset =
+          config.galleryOffset < 0 ? origOffset : config.galleryOffset
+      } else if (keyCode === DOWN_ARROW) {
+        config.galleryOffset += config.galleryTileWidth
+        config.galleryOffset =
+          config.galleryOffset > cimages.images.length - config.galleryTileWidth
+            ? origOffset
+            : config.galleryOffset
+      }
+    } else {
+      // so does clicking on image, too
+      const origIndex = config.selectedIndex
+      if (keyCode === RIGHT_ARROW) {
+        config.selectedIndex += 1
+      } else if (keyCode === LEFT_ARROW) {
+        config.selectedIndex -= 1
+      } else if (keyCode === UP_ARROW) {
+        config.selectedIndex -= config.galleryTileWidth
+      } else if (keyCode === DOWN_ARROW) {
+        config.selectedIndex += config.galleryTileWidth
+      }
+      config.selectedIndex =
+        config.selectedIndex < 0
+          ? origIndex
+          : config.selectedIndex + config.galleryOffset >= cimages.images.length
+          ? origIndex
+          : config.selectedIndex
+    }
+    displayGallery()
+  }
+}
+
 sketch.keyTyped = () => {
   // perform action invariant of activity
-  if ('0123456789'.includes(key)) {
+  const shifted = keyIsDown(SHIFT)
+  if (config.currentMode === mode3 && shifted) {
+    // TODO: redraw 1,2,3 rings
+    // will need to expose funcs and arrays
+    // and then have a way to clear them when NOT in mode3
+  } else if ('0123456789'.includes(key)) {
     modes[key][0]()
   } else if (activity === activityModes.Gallery) {
     if (key === 'x') {
-      deleteImage(config.selectedIndex)
+      deleteImage(config.selectedIndex + config.galleryOffset)
     } else if (key === 'c') {
       clearUploads()
       namer = filenamer(datestring())
@@ -547,7 +605,10 @@ const displayGallery = () => {
   textSize(12)
   textAlign(CENTER)
 
+  // if image count > 9 but less than 17 (or 25?) increase to 4 or 5
+  // or just jump straight to "scrolling" the images?
   let i = 0
+  // let imagesOffset = 0
   for (let gridY = 0; gridY < tileCountY; gridY++) {
     for (let gridX = 0; gridX < tileCountX; gridX++) {
       if (i >= cimages.images.length) {
@@ -558,9 +619,9 @@ const displayGallery = () => {
           gridY * tileHeight + tileHeight / 2
         )
       } else {
-        const tmp = cimages.images[i].cropped.get()
-        tmp.resize(0, tileHeight)
-        image(tmp, gridX * tileWidth, gridY * tileHeight)
+        const tmp = cimages.images[i + config.galleryOffset].cropped.get()
+        // tmp.resize(0, tileHeight) // why bother resize, just paint it small?
+        image(tmp, gridX * tileWidth, gridY * tileHeight, tileWidth, tileHeight)
 
         if (config.selectedIndex === i) {
           noFill()
@@ -669,8 +730,6 @@ function mode2 () {
   if (config.outline) {
     target.rect(0, 0, target.width, target.height)
   }
-  // filter(ERODE);
-  // filter(THRESHOLD, 0.4);
   target.strokeWeight(0)
 
   target.filter(DILATE)
@@ -679,8 +738,9 @@ function mode2 () {
 }
 
 // MOSTLY unique
-const getUniqueSets = (array, counts) => {
-  let original = [...array]
+// [imgs], [11,5,22]
+const getUniqueSets = (imgs, counts) => {
+  let original = [...imgs]
   let sets = counts.map(count => {
     // TODO: ah, this won't work.
     // maybe we need to shuffle the array
@@ -717,30 +777,47 @@ function getUniqueRandomItems (array, count) {
   return result
 }
 
+function splitArrayByRatio (arr, ratios) {
+  const totalRatio = ratios.reduce((sum, ratio) => sum + ratio, 0)
+  const totalLength = arr.length
+
+  const result = []
+  let startIndex = 0
+
+  for (let i = 0; i < ratios.length; i++) {
+    const subArrayLength = Math.ceil((totalLength * ratios[i]) / totalRatio)
+    result.push(arr.slice(startIndex, startIndex + subArrayLength))
+    startIndex += subArrayLength
+  }
+
+  // Handle any remaining elements
+  if (startIndex < totalLength) {
+    result[result.length - 1] = result[result.length - 1].concat(
+      arr.slice(startIndex)
+    )
+  }
+
+  return result
+}
+
 // discarded original
 // now based on /Users/michaelpaulukonis/projects/Code-Package-p5.js/01_P/P_4_2_1_02
 function mode3 () {
   activity = activityModes.Drawing
   config.currentMode = mode3
 
-  // target.image(cimages.random.cropped, 0, 0)
-  target.background(255)
+  // I keep changing my mind on this
+  // target.background(255)
 
   target.imageMode(CENTER)
-  // TODO: get random croppings instead of one cropping
-  // const img1 = cimages.random.cropped.get()
-  // const img2 = cimages.random.cropped.get()
-  // const img3 = cimages.random.cropped.get()
 
   let imgs = [...cimages.images]
-  // "original" sketch had counts of 11, 5, 22
-  const col1 = [imgs[0]]
-  const col2 = [imgs[1], imgs[2]]
-  const col3 = imgs.slice(3)
+  const [col1, col2, col3] = splitArrayByRatio(imgs, [11, 5, 22])
+  // something is waaaaaaay off in display
 
   const items1 = generateCollageItems(
     col1,
-    random(10, 30),
+    int(random(2, 10)),
     0,
     target.height / 2,
     PI * 5,
@@ -752,11 +829,11 @@ function mode3 () {
   )
   const items2 = generateCollageItems(
     col2,
-    random(15, 40),
+    int(random(10, 25)),
     0,
-    target.height * 0.15,
+    target.height / 2,
     PI * 5,
-    150,
+    target.height,
     0.1,
     random(0.3, 0.8),
     -PI / 6,
@@ -764,19 +841,17 @@ function mode3 () {
   )
   const items3 = generateCollageItems(
     col3,
-    random(10, 45),
+    int(random(10, 25)),
     0,
-    target.height * 0.66,
+    target.height / 2,
     PI * 5,
-    target.height * 0.66,
+    target.height,
     0.1,
     random(0.2, 0.5),
     -0.05,
     0.05
   )
 
-  // masks will have to go in here
-  // unless.... in generate?
   drawCollageitems(items1)
   drawCollageitems(items2)
   drawCollageitems(items3)
@@ -787,8 +862,8 @@ function mode3 () {
     target.rect(0, 0, target.width, target.height)
   }
 
-  image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   target.imageMode(CORNER)
+  image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play()
 }
 
@@ -805,18 +880,16 @@ function generateCollageItems (
   rotationEnd
 ) {
   var layerItems = []
-  let index = 0
-  for (let i = 0; i < count; i++) {
-    for (var j = 0; j < count; j++) {
-      var collageItem = new CollageItem(imgs[index].original)
+  for (let i = 0; i < imgs.length; i++) {
+    const img = imgs[i].original
+    for (let j = 0; j < count; j++) {
+      var collageItem = new CollageItem(img)
       collageItem.a = angle + random(-rangeA / 2, rangeA / 2)
       collageItem.l = length + random(-rangeL / 2, rangeL / 2)
       collageItem.scaling = random(scaleStart, scaleEnd)
       collageItem.rotation =
         collageItem.a + HALF_PI + random(rotationStart, rotationEnd)
       layerItems.push(collageItem)
-      index++
-      index = index < imgs.length ? index : 0
     }
   }
   return layerItems
@@ -830,12 +903,27 @@ function CollageItem (image) {
   this.image = image
 }
 
+function drawCollageitems_orig (layerItems) {
+  for (var i = 0; i < layerItems.length; i++) {
+    target.push()
+    target.translate(
+      target.width / 2 + cos(layerItems[i].a) * layerItems[i].l,
+      target.height / 2 + sin(layerItems[i].a) * layerItems[i].l
+    )
+    target.rotate(layerItems[i].rotation)
+    target.scale(layerItems[i].scaling)
+    target.image(layerItems[i].image, 0, 0)
+    target.pop()
+  }
+}
+
 function drawCollageitems (layerItems) {
   target.strokeWeight(0)
+  target.noFill()
+
   if (config.outline) {
     target.strokeWeight(config.outlineWeight)
     target.stroke('black')
-    target.noFill()
   }
 
   for (var i = 0; i < layerItems.length; i++) {
@@ -846,6 +934,12 @@ function drawCollageitems (layerItems) {
       target.height / 2 + sin(layerItems[i].a) * layerItems[i].l
     )
     target.rotate(layerItems[i].rotation)
+    target.rect(
+      (-img.width * layerItems[i].scaling) / 2,
+      (-img.height * layerItems[i].scaling) / 2,
+      img.width * layerItems[i].scaling,
+      img.height * layerItems[i].scaling
+    )
     target.image(
       layerItems[i].image,
       0,
@@ -853,13 +947,6 @@ function drawCollageitems (layerItems) {
       img.width * layerItems[i].scaling,
       img.height * layerItems[i].scaling
     )
-    target.rect(
-      (-img.width * layerItems[i].scaling) / 2,
-      (-img.height * layerItems[i].scaling) / 2,
-      img.width * layerItems[i].scaling,
-      img.height * layerItems[i].scaling
-    )
-
     target.pop()
   }
 }
@@ -1007,6 +1094,7 @@ function mode6 () {
       target.rect(x, y, tileWidth, tileHeight)
 
       if (random(0, 1) > 0.7) {
+        // TOO SLOW
         const c = img.get(x, gridY * tileHeight)
         target.fill(c)
         target.rect(
@@ -1017,6 +1105,9 @@ function mode6 () {
         )
       } else {
         // Offset tile
+        // TOO SLOW
+        // this can be done dirctly in image, with source and dest params
+        // AND FASTER
         const strip = img.get(x, y, tileWidth, tileHeight)
         target.image(strip, random(x - 10, x + 10), random(y - 10, y + 10))
       }
@@ -1071,6 +1162,7 @@ function mode8 () {
     const stripH = random(50, 150)
 
     for (let j = 0; j < stripH; j++) {
+      // reading pixels directly is a looooot faster
       const c = img.get(stripX, stripY + j)
       target.fill(c)
       target.rect(stripX, stripY + j, stripW, 1)
