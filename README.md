@@ -1,5 +1,10 @@
 # Computational Collage
 
+I've worked with other "collage" projects, but nothing made me very happy.
+
+Then I looked again at , and liked a number of the results, despite them being utterly unlike anything I had worked with before.
+
+Also taking inspiration from a Generatie Design application Code-Package-p5.js/01_P/P_4_2_1_02
 
 ## roadmap
 
@@ -17,6 +22,7 @@
 - add help screen
 - ~~publish to github.io~~
 - outlines/masks into CollageImage class?
+- import vector-path along with transparents for outlines
 
 ## some things to look at
 

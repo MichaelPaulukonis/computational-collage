@@ -1,12 +1,13 @@
 import saveAs from 'file-saver'
 import '../css/collage.style.css'
 import { Pane } from 'tweakpane'
+import * as JSZip from 'jszip'
 import { sketch } from 'p5js-wrapper'
 import 'p5js-wrapper/sound'
 // import './p5.pattern.js'
 // import { PTN } from './p5.pattern.js'
 import { datestring, filenamer } from './filelib'
-import { CollageImage, Images } from './images'
+import { CollageImage, OutlineableImage, Images } from './images'
 
 const sounds = [] // array for sound effects
 let actionSound // Sound for actions inclu save, blend & clear uploads
@@ -545,8 +546,15 @@ function dropFiles () {
   )
 }
 
+const getImageVectorKeys = (zip) => {
+  let names = Object.keys(zip.files);
+  let imageName = names.find((n) => n.endsWith("png"));
+  let vectorName = names.find((n) => n.endsWith("json"));
+  return { imageName, vectorName };
+};
+
 // Handle file uploads
-function handleFile (file) {
+async function handleFile (file) {
   if (file.type === 'image') {
     loadImage(file.data, img => {
       let croppedImg = squareCrop(img)
@@ -554,8 +562,20 @@ function handleFile (file) {
       cimages.addImage(new CollageImage(img, croppedImg))
       displayGallery()
     })
+  } else if (file.subtype === "zip") {
+    const zip = await JSZip.loadAsync(file.file);
+    let { imageName, vectorName } = getImageVectorKeys(zip);
+    const jsonData = await zip.file(vectorName).async("string");
+    let vectors = JSON.parse(jsonData);
+
+    const data = await zip.file(imageName).async("blob");
+    var objectURL = URL.createObjectURL(data);
+    loadImage(objectURL, (img) => {
+      cimages.addImage(new OutlineableImage(img, vectors))
+      displayGallery()
+    });
   } else {
-    console.log('Not an image file!')
+    console.log('Not an image file or image-outline bundle!')
   }
 }
 
@@ -607,11 +627,12 @@ const displayGallery = () => {
 
   // if image count > 9 but less than 17 (or 25?) increase to 4 or 5
   // or just jump straight to "scrolling" the images?
+  // TODO: add in the outlineables
   let i = 0
   // let imagesOffset = 0
   for (let gridY = 0; gridY < tileCountY; gridY++) {
     for (let gridX = 0; gridX < tileCountX; gridX++) {
-      if (i >= cimages.images.length) {
+      if (i >= cimages.outlineds.length) {
         fill(255)
         text(
           'Drop to upload',
@@ -619,8 +640,8 @@ const displayGallery = () => {
           gridY * tileHeight + tileHeight / 2
         )
       } else {
-        const tmp = cimages.images[i + config.galleryOffset].cropped.get()
-        // tmp.resize(0, tileHeight) // why bother resize, just paint it small?
+        // let's do the outlineables FIRST
+        const tmp = cimages.outlineds[i + config.galleryOffset].image
         image(tmp, gridX * tileWidth, gridY * tileHeight, tileWidth, tileHeight)
 
         if (config.selectedIndex === i) {
@@ -737,46 +758,6 @@ function mode2 () {
   random(sounds).play()
 }
 
-// MOSTLY unique
-// [imgs], [11,5,22]
-const getUniqueSets = (imgs, counts) => {
-  let original = [...imgs]
-  let sets = counts.map(count => {
-    // TODO: ah, this won't work.
-    // maybe we need to shuffle the array
-    // and then pick the first count items
-    // but it's circular, or something?
-    // OTOH, taking random and shuffling are the same thing
-    // or ARE THEY
-  })
-}
-
-function getUniqueRandomItems (array, count) {
-  // Make a copy of the original array to avoid modifying it
-  let original = [...array]
-
-  // Initialize an array to store the random items
-  let result = []
-
-  // Loop until we have the desired number of unique items
-  while (result.length < count && array.length > 0) {
-    // Get a random index from the remaining items
-    let randomIndex = Math.floor(Math.random() * array.length)
-
-    // Add the item at that index to the result array
-    result.push(array[randomIndex])
-
-    // Remove the item from the remaining items
-    array.splice(randomIndex, 1)
-    if (array.length === 0) {
-      // If we've run out of items, shuffle the original array
-      array = [...original]
-    }
-  }
-
-  return result
-}
-
 function splitArrayByRatio (arr, ratios) {
   const totalRatio = ratios.reduce((sum, ratio) => sum + ratio, 0)
   const totalLength = arr.length
@@ -800,16 +781,51 @@ function splitArrayByRatio (arr, ratios) {
   return result
 }
 
+// aaaargh, a scaled image is not the correct thickness :-()
+const outlined = (img) => {
+  const s = 20; // thickness scale
+  const x = 5; // final position
+  const y = 5;
+  const target = createGraphics(img.width+2*s, img.height+2*s);
+    const dArr = [-1, -1, 0, -1, 1, -1, -1, 0, 1, 0, -1, 1, 0, 1, 1, 1]; // offset array
+
+  // Draw images at offsets from the array scaled by s
+  for (let i = 0; i < dArr.length; i += 2) {
+    target.image(img, x + dArr[i] * s, y + dArr[i + 1] * s);
+  }
+
+  // Create a new graphics buffer
+  let buffer = createGraphics(img.width+2*s, img.height+2*s);
+
+  // Draw a colored rectangle on the buffer
+  buffer.fill(0);
+  buffer.rect(0, 0, width+2*s, height+2*s);
+
+  // Set the blend mode of the canvas to "source-in"
+  target.drawingContext.globalCompositeOperation = "source-in";
+
+  // Draw the buffer on the canvas
+  target.image(buffer, 0, 0);
+
+  // Reset the blend mode of the canvas
+  target.drawingContext.globalCompositeOperation = "source-over";
+
+  // Draw original image in normal mode
+  target.image(img, x, y);
+  
+  return target
+}
+
 const layerGen = {
   genLayer0: null,
   genLayer1: null,
   genLayer2: null
 }
 
-layerGen.genLayer0 = col => {
+layerGen.genLayer0 = imgs => {
   return () =>
     generateCollageItems(
-      col,
+      imgs,
       int(random(2, 10)),
       0,
       target.height / 2,
@@ -822,10 +838,10 @@ layerGen.genLayer0 = col => {
     )
 }
 
-layerGen.genLayer1 = col => {
+layerGen.genLayer1 = imgs => {
   return () =>
     generateCollageItems(
-      col,
+      imgs,
       int(random(10, 25)),
       0,
       target.height / 2,
@@ -838,10 +854,10 @@ layerGen.genLayer1 = col => {
     )
 }
 
-layerGen.genLayer2 = col => {
+layerGen.genLayer2 = imgs => {
   return () =>
     generateCollageItems(
-      col,
+      imgs,
       int(random(10, 25)),
       0,
       target.height / 2,
@@ -854,9 +870,21 @@ layerGen.genLayer2 = col => {
     )
 }
 
-// discarded original
-// now based on /Users/michaelpaulukonis/projects/Code-Package-p5.js/01_P/P_4_2_1_02
 function mode3 () {
+  activity = activityModes.Drawing
+  config.currentMode = mode3
+
+  circularCollections = splitArrayByRatio(cimages.outlineds, [11, 5, 22])
+
+  circularLayers[0] = layerGen.genLayer0(circularCollections[0])()
+  circularLayers[1] = layerGen.genLayer1(circularCollections[1])()
+  circularLayers[2] = layerGen.genLayer2(circularCollections[2])()
+
+  drawMode3(circularLayers)
+}
+
+// now based on /Users/michaelpaulukonis/projects/Code-Package-p5.js/01_P/P_4_2_1_02
+function mode3_orig () {
   activity = activityModes.Drawing
   config.currentMode = mode3
 
@@ -900,28 +928,65 @@ function generateCollageItems (
 ) {
   var layerItems = []
   for (let i = 0; i < imgs.length; i++) {
-    const img = imgs[i].original
+    const img = imgs[i]
+    for (let j = 0; j < count; j++) {
+      var item = new OutlineableCollageItem(img)
+      item.angle = angle + random(-rangeA / 2, rangeA / 2)
+      item.l = length + random(-rangeL / 2, rangeL / 2)
+      item.scaling = random(scaleStart, scaleEnd)
+      item.rotation =
+        item.angle + HALF_PI + random(rotationStart, rotationEnd)
+      layerItems.push(item)
+    }
+  }
+  return layerItems
+}
+
+function generateCollageItems_orig (
+  imgs,
+  count,
+  angle,
+  length,
+  rangeA,
+  rangeL,
+  scaleStart,
+  scaleEnd,
+  rotationStart,
+  rotationEnd
+) {
+  var layerItems = []
+  for (let i = 0; i < imgs.length; i++) {
+    const img = outlined(imgs[i].original)
     for (let j = 0; j < count; j++) {
       var collageItem = new CollageItem(img)
-      collageItem.a = angle + random(-rangeA / 2, rangeA / 2)
+      collageItem.angle = angle + random(-rangeA / 2, rangeA / 2)
       collageItem.l = length + random(-rangeL / 2, rangeL / 2)
       collageItem.scaling = random(scaleStart, scaleEnd)
       collageItem.rotation =
-        collageItem.a + HALF_PI + random(rotationStart, rotationEnd)
+        collageItem.angle + HALF_PI + random(rotationStart, rotationEnd)
       layerItems.push(collageItem)
     }
   }
   return layerItems
 }
 
+function OutlineableCollageItem (outlineableImg) {
+  this.angle = 0
+  this.l = 0
+  this.rotation = 0
+  this.scaling = 1
+  this.outlineableImg = outlineableImg
+}
+
 function CollageItem (image) {
-  this.a = 0
+  this.angle = 0
   this.l = 0
   this.rotation = 0
   this.scaling = 1
   this.image = image
 }
 
+// TODO: make work with outlineable
 function drawCollageitems (layerItems) {
   target.strokeWeight(0)
   target.noFill()
@@ -935,8 +1000,8 @@ function drawCollageitems (layerItems) {
     const img = layerItems[i].image
     target.push()
     target.translate(
-      target.width / 2 + cos(layerItems[i].a) * layerItems[i].l,
-      target.height / 2 + sin(layerItems[i].a) * layerItems[i].l
+      target.width / 2 + cos(layerItems[i].angle) * layerItems[i].l,
+      target.height / 2 + sin(layerItems[i].angle) * layerItems[i].l
     )
     target.rotate(layerItems[i].rotation)
     target.rect(
