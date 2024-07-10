@@ -41,17 +41,17 @@ export class OutlineableImage {
     this.scaling = 1
   }
 
-  // TODO: will also need to pass in scale and rotation ?!?
-  draw(x,y) {
-    strokeWeight(thickness);
-    stroke(this.strokeColor);
-    noFill();
-    beginShape();
+  // ooooh, vertexes need scaling applied...
+  draw(x,y, scaling, target) {
+    target.strokeWeight(this.thickness);
+    target.stroke(this.strokeColor);
+    target.noFill();
+    target.beginShape();
     for (let v of this.vectors) {
-      vertex(v.x + x - this.offset.x, v.y + y - this.offset.y);
+      target.vertex((v.x + x - this.offset.x) * scaling, (v.y + y - this.offset.y) * scaling);
     }
-    endShape(CLOSE);
-    image(this.image, x, y);
+    target.endShape(CLOSE);
+    target.image(this.image, x, y, this.image.width * scaling, this.image.height * scaling);
   }
 }
 

@@ -831,8 +831,8 @@ layerGen.genLayer0 = imgs => {
       target.height / 2,
       PI * 5,
       target.height,
-      0.1,
       0.5,
+      1.5,
       0,
       0
     )
@@ -848,7 +848,7 @@ layerGen.genLayer1 = imgs => {
       PI * 5,
       target.height,
       0.1,
-      random(0.3, 0.8),
+      random(0.8, 2.0),
       -PI / 6,
       PI / 65
     )
@@ -863,8 +863,10 @@ layerGen.genLayer2 = imgs => {
       target.height / 2,
       PI * 5,
       target.height,
-      0.1,
-      random(0.2, 0.5),
+      0.3,
+      3.0,
+      // 0.1,
+      // random(0.2, 0.5),
       -0.05,
       0.05
     )
@@ -915,7 +917,7 @@ const drawMode3 = layers => {
 }
 
 function generateCollageItems (
-  imgs,
+  imgObjs,
   count,
   angle,
   length,
@@ -927,8 +929,8 @@ function generateCollageItems (
   rotationEnd
 ) {
   var layerItems = []
-  for (let i = 0; i < imgs.length; i++) {
-    const img = imgs[i]
+  for (let i = 0; i < imgObjs.length; i++) {
+    const img = imgObjs[i]
     for (let j = 0; j < count; j++) {
       var item = new OutlineableCollageItem(img)
       item.angle = angle + random(-rangeA / 2, rangeA / 2)
@@ -970,12 +972,18 @@ function generateCollageItems_orig (
   return layerItems
 }
 
+// TODO: I do need a copy of the original
+// because we need to draw the vectors
+// and that code is within the OutlineableImage class
+// draw(x,y) - but it will need a lot of other info passed in
 function OutlineableCollageItem (outlineableImg) {
   this.angle = 0
   this.l = 0
   this.rotation = 0
   this.scaling = 1
-  this.outlineableImg = outlineableImg
+  this.image = outlineableImg.image
+  this.vectors = outlineableImg.vectors
+  this.oi = outlineableImg
 }
 
 function CollageItem (image) {
@@ -997,26 +1005,28 @@ function drawCollageitems (layerItems) {
   }
 
   for (var i = 0; i < layerItems.length; i++) {
-    const img = layerItems[i].image
+    const item = layerItems[i]
+    const img = item.image
     target.push()
     target.translate(
-      target.width / 2 + cos(layerItems[i].angle) * layerItems[i].l,
-      target.height / 2 + sin(layerItems[i].angle) * layerItems[i].l
+      target.width / 2 + cos(item.angle) * item.l,
+      target.height / 2 + sin(item.angle) * item.l
     )
-    target.rotate(layerItems[i].rotation)
-    target.rect(
-      (-img.width * layerItems[i].scaling) / 2,
-      (-img.height * layerItems[i].scaling) / 2,
-      img.width * layerItems[i].scaling,
-      img.height * layerItems[i].scaling
-    )
-    target.image(
-      layerItems[i].image,
-      0,
-      0,
-      img.width * layerItems[i].scaling,
-      img.height * layerItems[i].scaling
-    )
+    target.rotate(item.rotation)
+    item.oi.draw(0,0, item.scaling, target)
+    // target.rect(
+    //   (-img.width * item.scaling) / 2,
+    //   (-img.height * item.scaling) / 2,
+    //   img.width * item.scaling,
+    //   img.height * item.scaling
+    // )
+    // target.image(
+    //   img,
+    //   0,
+    //   0,
+    //   img.width * item.scaling,
+    //   img.height * item.scaling
+    // )
     target.pop()
   }
 }
