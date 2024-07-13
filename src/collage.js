@@ -477,6 +477,8 @@ sketch.keyTyped = () => {
     } else if (key === 'c') {
       clearUploads()
       namer = filenamer(datestring())
+    } else if (key === 'd') {
+      duplicateRecrop()
     }
   } else {
     if (key === 's') {
@@ -487,8 +489,6 @@ sketch.keyTyped = () => {
       blendLightest()
     } else if (key === 'r') {
       resetBlend()
-    } else if (key === 'd') {
-      duplicateRecrop()
     } else if (key === 'g') {
       displayGallery()
     } else if (key === 'u') {
@@ -562,7 +562,7 @@ function handleFile (file) {
 const duplicateRecrop = () => {
   const tempCropMode = config.cropStrategy
   config.cropStrategy = 'RANDOM'
-  const cloned = cimages.images[cimages.images.length - 1].clone
+  const cloned = cimages.images[config.selectedIndex].clone
   cloned.cropped = squareCrop(cloned.original)
   cloned.cropped.resize(target.width, 0)
   cimages.addImage(cloned)
@@ -611,7 +611,8 @@ const displayGallery = () => {
   // let imagesOffset = 0
   for (let gridY = 0; gridY < tileCountY; gridY++) {
     for (let gridX = 0; gridX < tileCountX; gridX++) {
-      if (i >= cimages.images.length) {
+      const index = i + config.galleryOffset
+      if (index  >= cimages.images.length) {
         fill(255)
         text(
           'Drop to upload',
@@ -619,11 +620,11 @@ const displayGallery = () => {
           gridY * tileHeight + tileHeight / 2
         )
       } else {
-        const tmp = cimages.images[i + config.galleryOffset].cropped.get()
+        const tmp = cimages.images[index].cropped.get()
         // tmp.resize(0, tileHeight) // why bother resize, just paint it small?
         image(tmp, gridX * tileWidth, gridY * tileHeight, tileWidth, tileHeight)
 
-        if (config.selectedIndex === i) {
+        if (config.selectedIndex === index) {
           noFill()
           stroke('green')
           strokeWeight(4)
