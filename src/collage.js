@@ -56,6 +56,7 @@ const config = {
   galleryOffset: 0,
   stripeSize: 1,
   outline: false,
+  outlineColor: 'black',
   circle: false,
   outlineWeight: 50,
   stripMin: 100,
@@ -523,6 +524,7 @@ sketch.keyTyped = () => {
         // repeated saves don't work so well - I get 18/20 or worse.
         // I "solved" this problem by using a custom library - see polychrometext
         // except it still doesn't work, here. Something else must have come into play.
+        // TODO: convert to canvas-sketch which saves great
         download()
         console.log(`saved collage ${i}`)
       }
@@ -571,7 +573,7 @@ async function handleFile (file) {
     const data = await zip.file(imageName).async("blob");
     var objectURL = URL.createObjectURL(data);
     loadImage(objectURL, (img) => {
-      cimages.addImage(new OutlineableImage(img, vectors))
+      cimages.addImage(new OutlineableImage({img, vectors}))
       displayGallery()
     });
   } else {
@@ -579,6 +581,7 @@ async function handleFile (file) {
   }
 }
 
+// TODO: get to work w/ OutlineableImage
 const duplicateRecrop = () => {
   const tempCropMode = config.cropStrategy
   config.cropStrategy = 'RANDOM'
@@ -718,7 +721,7 @@ function mode2 () {
   if (config.outline) {
     // target.blendMode('source-over')
     target.strokeWeight(config.outlineWeight)
-    target.stroke('black')
+    target.stroke(config.outlineColor)
     target.noFill()
   }
 
@@ -781,7 +784,6 @@ function splitArrayByRatio (arr, ratios) {
   return result
 }
 
-// aaaargh, a scaled image is not the correct thickness :-()
 const outlined = (img) => {
   const s = 20; // thickness scale
   const x = 5; // final position
@@ -885,20 +887,6 @@ function mode3 () {
   drawMode3(circularLayers)
 }
 
-// now based on /Users/michaelpaulukonis/projects/Code-Package-p5.js/01_P/P_4_2_1_02
-function mode3_orig () {
-  activity = activityModes.Drawing
-  config.currentMode = mode3
-
-  circularCollections = splitArrayByRatio(cimages.images, [11, 5, 22])
-
-  circularLayers[0] = layerGen.genLayer0(circularCollections[0])()
-  circularLayers[1] = layerGen.genLayer1(circularCollections[1])()
-  circularLayers[2] = layerGen.genLayer2(circularCollections[2])()
-
-  drawMode3(circularLayers)
-}
-
 const drawMode3 = layers => {
   // I keep changing my mind on this
   target.background(255)
@@ -932,41 +920,14 @@ function generateCollageItems (
   for (let i = 0; i < imgObjs.length; i++) {
     const img = imgObjs[i]
     for (let j = 0; j < count; j++) {
-      var item = new OutlineableCollageItem(img)
+      var item = new OutlineableCollageItem(img, null, config.outlineWeight)
       item.angle = angle + random(-rangeA / 2, rangeA / 2)
       item.l = length + random(-rangeL / 2, rangeL / 2)
       item.scaling = random(scaleStart, scaleEnd)
+      // item.thickness = config.outlineWeight
       item.rotation =
         item.angle + HALF_PI + random(rotationStart, rotationEnd)
       layerItems.push(item)
-    }
-  }
-  return layerItems
-}
-
-function generateCollageItems_orig (
-  imgs,
-  count,
-  angle,
-  length,
-  rangeA,
-  rangeL,
-  scaleStart,
-  scaleEnd,
-  rotationStart,
-  rotationEnd
-) {
-  var layerItems = []
-  for (let i = 0; i < imgs.length; i++) {
-    const img = outlined(imgs[i].original)
-    for (let j = 0; j < count; j++) {
-      var collageItem = new CollageItem(img)
-      collageItem.angle = angle + random(-rangeA / 2, rangeA / 2)
-      collageItem.l = length + random(-rangeL / 2, rangeL / 2)
-      collageItem.scaling = random(scaleStart, scaleEnd)
-      collageItem.rotation =
-        collageItem.angle + HALF_PI + random(rotationStart, rotationEnd)
-      layerItems.push(collageItem)
     }
   }
   return layerItems
@@ -976,6 +937,7 @@ function generateCollageItems_orig (
 // because we need to draw the vectors
 // and that code is within the OutlineableImage class
 // draw(x,y) - but it will need a lot of other info passed in
+// this is a wrapper around OutlineableImage
 function OutlineableCollageItem (outlineableImg) {
   this.angle = 0
   this.l = 0
@@ -986,15 +948,6 @@ function OutlineableCollageItem (outlineableImg) {
   this.oi = outlineableImg
 }
 
-function CollageItem (image) {
-  this.angle = 0
-  this.l = 0
-  this.rotation = 0
-  this.scaling = 1
-  this.image = image
-}
-
-// TODO: make work with outlineable
 function drawCollageitems (layerItems) {
   target.strokeWeight(0)
   target.noFill()
@@ -1013,20 +966,7 @@ function drawCollageitems (layerItems) {
       target.height / 2 + sin(item.angle) * item.l
     )
     target.rotate(item.rotation)
-    item.oi.draw(0,0, item.scaling, target)
-    // target.rect(
-    //   (-img.width * item.scaling) / 2,
-    //   (-img.height * item.scaling) / 2,
-    //   img.width * item.scaling,
-    //   img.height * item.scaling
-    // )
-    // target.image(
-    //   img,
-    //   0,
-    //   0,
-    //   img.width * item.scaling,
-    //   img.height * item.scaling
-    // )
+    item.oi.draw({x:0,y:0, scaling: item.scaling, target, config })
     target.pop()
   }
 }

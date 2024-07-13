@@ -29,29 +29,35 @@ export class CollageImage {
 }
 
 export class OutlineableImage {
-  constructor(img, vectors = [], thickness = 20) {
-    this.vectors = vectors;
-    this.image = img;
-    this.offset = { x: this.image.width / 2, y: this.image.height / 2}
-    this.thickness = thickness
-    this.strokeColor = 0
-    this.angle = 0
-    this.length = 0
-    this.rotation = 0
+  constructor ({ img, vectors = []}) {
+    this.vectors = vectors
+    this.image = img
+    this.offset = { x: this.image.width / 2, y: this.image.height / 2 }
     this.scaling = 1
   }
 
   // ooooh, vertexes need scaling applied...
-  draw(x,y, scaling, target) {
-    target.strokeWeight(this.thickness);
-    target.stroke(this.strokeColor);
-    target.noFill();
-    target.beginShape();
-    for (let v of this.vectors) {
-      target.vertex((v.x + x - this.offset.x) * scaling, (v.y + y - this.offset.y) * scaling);
+  draw ({ x, y, scaling, target, config }) {
+    if (config.outline) {
+      target.strokeWeight(config.outlineWeight) // something different than other type
+      target.stroke(config.outlineColor)
+      target.noFill()
+      target.beginShape()
+      for (let v of this.vectors) {
+        target.vertex(
+          (v.x + x - this.offset.x) * scaling,
+          (v.y + y - this.offset.y) * scaling
+        )
+      }
+      target.endShape(CLOSE)
     }
-    target.endShape(CLOSE);
-    target.image(this.image, x, y, this.image.width * scaling, this.image.height * scaling);
+    target.image(
+      this.image,
+      x,
+      y,
+      this.image.width * scaling,
+      this.image.height * scaling
+    )
   }
 }
 
@@ -76,9 +82,7 @@ export class Images {
   }
 
   addImage (imgobj) {
-    let coll = imgobj instanceof  CollageImage
-      ? this.imgs
-      : this.outlined
+    let coll = imgobj instanceof CollageImage ? this.imgs : this.outlined
     coll.push(imgobj)
   }
 
