@@ -409,11 +409,12 @@ const mouseWithinCanvas = () => {
 // this is START of press
 sketch.mousePressed = () => {
   if (activity === activityModes.Gallery && mouseWithinCanvas()) {
-    const tileSize = displayCanvas.width / config.galleryTileWidth
+    const tileSize = Math.floor(displayCanvas.width / config.galleryTileWidth)
     let clickedIndex =
       floor(mouseX / tileSize) +
       floor(mouseY / tileSize) * config.galleryTileWidth
-    if (clickedIndex < cimages.images.length) {
+      + config.galleryOffset
+    if (clickedIndex < cimages.outlineds.length) {
       config.selectedIndex = clickedIndex
     }
     displayGallery()
@@ -435,7 +436,7 @@ sketch.keyPressed = () => {
       } else if (keyCode === DOWN_ARROW) {
         config.galleryOffset += config.galleryTileWidth
         config.galleryOffset =
-          config.galleryOffset > cimages.images.length - config.galleryTileWidth
+          config.galleryOffset > cimages.outlineds.length - config.galleryTileWidth
             ? origOffset
             : config.galleryOffset
       }
@@ -454,7 +455,7 @@ sketch.keyPressed = () => {
       config.selectedIndex =
         config.selectedIndex < 0
           ? origIndex
-          : config.selectedIndex + config.galleryOffset >= cimages.images.length
+          : config.selectedIndex + config.galleryOffset >= cimages.outlineds.length
           ? origIndex
           : config.selectedIndex
     }
@@ -475,7 +476,8 @@ sketch.keyTyped = () => {
     modes[key][0]()
   } else if (activity === activityModes.Gallery) {
     if (key === 'x') {
-      deleteImage(config.selectedIndex + config.galleryOffset)
+      deleteImage(config.selectedIndex)
+      displayGallery()
     } else if (key === 'c') {
       clearUploads()
       namer = filenamer(datestring())
@@ -630,6 +632,53 @@ const displayGallery = () => {
 
   // if image count > 9 but less than 17 (or 25?) increase to 4 or 5
   // or just jump straight to "scrolling" the images?
+  let i = 0
+  // let imagesOffset = 0
+  for (let gridY = 0; gridY < tileCountY; gridY++) {
+    for (let gridX = 0; gridX < tileCountX; gridX++) {
+      const index = i + config.galleryOffset
+      if (index  >= cimages.outlineds.length) {
+        fill(255)
+        text(
+          'Drop to upload',
+          gridX * tileWidth + tileWidth / 2,
+          gridY * tileHeight + tileHeight / 2
+        )
+      } else {
+        // let's do the outlineables FIRST
+        const tmp = cimages.outlineds[i + config.galleryOffset].image
+        image(tmp, gridX * tileWidth, gridY * tileHeight, tileWidth, tileHeight)
+
+        if (config.selectedIndex === index ) {
+          noFill()
+          stroke('green')
+          strokeWeight(4)
+          rect(gridX * tileWidth, gridY * tileHeight, tileWidth, tileWidth)
+          displayCanvas.fill('black')
+          noStroke()
+        }
+      }
+      i++
+    }
+  }
+}
+
+// Show input image gallery (no more than 9 for speed)
+const displayGallery_orig = () => {
+  activity = activityModes.Gallery
+  config.currentMode = mode0
+  const tileCountX = config.galleryTileWidth
+  const tileCountY = config.galleryTileWidth
+
+  const tileWidth = displayCanvas.width / tileCountX
+  const tileHeight = displayCanvas.height / tileCountY
+  background(60)
+  noStroke()
+  textSize(12)
+  textAlign(CENTER)
+
+  // if image count > 9 but less than 17 (or 25?) increase to 4 or 5
+  // or just jump straight to "scrolling" the images?
   // TODO: add in the outlineables
   let i = 0
   // let imagesOffset = 0
@@ -662,12 +711,11 @@ const displayGallery = () => {
 }
 
 const deleteImage = index => {
-  cimages.images.splice(index, 1)
+  cimages.outlineds.splice(index, 1)
   config.selectedIndex =
-    config.selectedIndex < cimages.images.length
+    config.selectedIndex < cimages.outlineds.length
       ? config.selectedIndex
       : config.selectedIndex - 1
-  displayGallery()
 }
 
 function mode0 () {
@@ -759,6 +807,10 @@ function mode2 () {
   target.filter(DILATE)
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play()
+}
+
+function shuffleArray(array) {
+  return array.sort(() => Math.random() - 0.5);
 }
 
 function splitArrayByRatio (arr, ratios) {
@@ -878,7 +930,7 @@ function mode3 () {
   activity = activityModes.Drawing
   config.currentMode = mode3
 
-  circularCollections = splitArrayByRatio(cimages.outlineds, [11, 5, 22])
+  circularCollections = splitArrayByRatio(shuffleArray(cimages.outlineds), [11, 5, 22])
 
   circularLayers[0] = layerGen.genLayer0(circularCollections[0])()
   circularLayers[1] = layerGen.genLayer1(circularCollections[1])()

@@ -36,6 +36,16 @@ export class OutlineableImage {
     this.scaling = 1
   }
 
+  get cropped () {
+    return this.image
+  }
+
+  get clone () {
+    const tImage = this.image.get()
+    const tVectors = JSON.parse(JSON.stringify(this.vectors))
+    return new OutlineableImage({ img: tImage, vectors: tVectors})
+  }
+
   // ooooh, vertexes need scaling applied...
   draw ({ x, y, scaling, target, config }) {
     if (config.outline) {
@@ -88,5 +98,6 @@ export class Images {
 
   clear () {
     this.imgs = []
+    this.outlined = []
   }
 }
