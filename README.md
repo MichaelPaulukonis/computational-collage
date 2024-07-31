@@ -51,3 +51,5 @@ Learn more about the project at: https://www.zhixinlin.com/computational-collage
 Developed by Zhixin Lin
 
 ### There have been significant changes since the original
+
+uses https://github.com/makinteract/p5js-vite?tab=readme-ov-file
