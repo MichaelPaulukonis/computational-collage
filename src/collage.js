@@ -47,6 +47,43 @@ let resetCircularLayers = () => [[], [], []]
 let circularLayers = resetCircularLayers()
 let circularCollections = [[], [], []]
 
+const circularLayerConfig = (ang, rs, re, ss, se, ra, rl, l) => ({
+  angle: ang,
+  rotationStart: rs,
+  rotationEnd: re,
+  scaleStart: ss,
+  scaleEnd: se,
+  rangeA: ra,
+  rangeL: rl,
+  length: l
+})
+
+const rand = (min, max) => Math.random() * (max - min + 1) + min
+
+// zero-index, and don't you forget it!
+let layer0Config = circularLayerConfig(
+  0,
+  0,
+  0,
+  0.4,
+  1.5,
+  Math.PI * 5,
+  2000,
+  1000
+)
+// NOTE: scaleEnd was original a random int
+let layer1Config = circularLayerConfig(
+  90,
+  -Math.PI / 6,
+  Math.PI / 6,
+  0.1,
+  rand(0.8, 2),
+  Math.PI * 5,
+  2000,
+  1000
+)
+let layer2Config = circularLayerConfig(0, -5, 5, 0.3, 3.0, 15, 1000, 1000)
+
 const config = {
   addin: addins.Solid,
   mondrianStripes: true,
@@ -58,7 +95,7 @@ const config = {
   outline: false,
   outlineColor: 'black',
   circle: false,
-  outlineWeight: 50,
+  outlineWeight: 100,
   stripMin: 100,
   stripMax: 1000,
   stripCount: 100,
@@ -68,8 +105,20 @@ const config = {
   solidProb: 0.8,
   fragmentStrategy: fragmentStrategies.RANDOM,
   patternsReady: false,
-  selectedIndex: 0
+  selectedIndex: 0,
+  layer0Config,
+  layer1Config,
+  layer2Config,
+  layer2_angle: 0,
+  layer2_rotationStart: -5,
+  layer2_rotationEnd: 5,
+  layer2_scaleStart: 0.3,
+  layer2_scaleEnd: 3.0,
+  layer2_rangeA: 15,
+  layer2_rangeL: 1000,
+  layer2_length: 1000
 }
+
 let uploadBtn, downloadBtn, clearBtn, blendBtn, resetBtn
 let namer = filenamer(datestring())
 const modes = [
@@ -113,10 +162,15 @@ sketch.setup = () => {
   setupButtons()
 
   const tab = pane.addTab({
-    pages: [{ title: 'Parameters' }, { title: 'Collage Modes' }]
+    pages: [
+      { title: 'Parameters' },
+      { title: 'Collage Modes' },
+      { title: 'mode3' }
+    ]
   })
   const parmTab = tab.pages[0]
   const modeTab = tab.pages[1]
+  const mode3Tab = tab.pages[2]
 
   const btn = parmTab
     .addButton({
@@ -175,6 +229,47 @@ sketch.setup = () => {
       })
       .on('click', () => m[0]())
   )
+
+  mode3Tab.addBinding(config.layer2Config, 'angle', {
+    min: -180,
+    max: 180,
+    step: 1
+  })
+  mode3Tab.addBinding(config.layer2Config, 'rotationStart', {
+    min: -180,
+    max: 180,
+    step: 1
+  })
+  mode3Tab.addBinding(config.layer2Config, 'rotationEnd', {
+    min: -180,
+    max: 180,
+    step: 1
+  })
+  mode3Tab.addBinding(config.layer2Config, 'scaleStart', {
+    min: 0.1,
+    max: 10,
+    step: 0.1
+  })
+  mode3Tab.addBinding(config.layer2Config, 'scaleEnd', {
+    min: 0.1,
+    max: 10,
+    step: 0.1
+  })
+  mode3Tab.addBinding(config.layer2Config, 'length', {
+    min: 100,
+    max: 2000,
+    step: 10
+  })
+  mode3Tab.addBinding(config.layer2Config, 'rangeA', {
+    min: 0,
+    max: 30,
+    step: 1
+  })
+  mode3Tab.addBinding(config.layer2Config, 'rangeL', {
+    min: 100,
+    max: 2000,
+    step: 10
+  })
 
   for (let i = 0; i < images.length; i++) {
     let croppedImg = squareCrop(images[i])
@@ -412,8 +507,8 @@ sketch.mousePressed = () => {
     const tileSize = Math.floor(displayCanvas.width / config.galleryTileWidth)
     let clickedIndex =
       floor(mouseX / tileSize) +
-      floor(mouseY / tileSize) * config.galleryTileWidth
-      + config.galleryOffset
+      floor(mouseY / tileSize) * config.galleryTileWidth +
+      config.galleryOffset
     if (clickedIndex < cimages.outlineds.length) {
       config.selectedIndex = clickedIndex
     }
@@ -436,7 +531,8 @@ sketch.keyPressed = () => {
       } else if (keyCode === DOWN_ARROW) {
         config.galleryOffset += config.galleryTileWidth
         config.galleryOffset =
-          config.galleryOffset > cimages.outlineds.length - config.galleryTileWidth
+          config.galleryOffset >
+          cimages.outlineds.length - config.galleryTileWidth
             ? origOffset
             : config.galleryOffset
       }
@@ -455,7 +551,8 @@ sketch.keyPressed = () => {
       config.selectedIndex =
         config.selectedIndex < 0
           ? origIndex
-          : config.selectedIndex + config.galleryOffset >= cimages.outlineds.length
+          : config.selectedIndex + config.galleryOffset >=
+            cimages.outlineds.length
           ? origIndex
           : config.selectedIndex
     }
@@ -550,12 +647,12 @@ function dropFiles () {
   )
 }
 
-const getImageVectorKeys = (zip) => {
-  let names = Object.keys(zip.files);
-  let imageName = names.find((n) => n.endsWith("png"));
-  let vectorName = names.find((n) => n.endsWith("json"));
-  return { imageName, vectorName };
-};
+const getImageVectorKeys = zip => {
+  let names = Object.keys(zip.files)
+  let imageName = names.find(n => n.endsWith('png'))
+  let vectorName = names.find(n => n.endsWith('json'))
+  return { imageName, vectorName }
+}
 
 // Handle file uploads
 async function handleFile (file) {
@@ -566,18 +663,18 @@ async function handleFile (file) {
       cimages.addImage(new CollageImage(img, croppedImg))
       displayGallery()
     })
-  } else if (file.subtype === "zip") {
-    const zip = await JSZip.loadAsync(file.file);
-    let { imageName, vectorName } = getImageVectorKeys(zip);
-    const jsonData = await zip.file(vectorName).async("string");
-    let vectors = JSON.parse(jsonData);
+  } else if (file.subtype === 'zip') {
+    const zip = await JSZip.loadAsync(file.file)
+    let { imageName, vectorName } = getImageVectorKeys(zip)
+    const jsonData = await zip.file(vectorName).async('string')
+    let vectors = JSON.parse(jsonData)
 
-    const data = await zip.file(imageName).async("blob");
-    var objectURL = URL.createObjectURL(data);
-    loadImage(objectURL, (img) => {
-      cimages.addImage(new OutlineableImage({img, vectors}))
+    const data = await zip.file(imageName).async('blob')
+    var objectURL = URL.createObjectURL(data)
+    loadImage(objectURL, img => {
+      cimages.addImage(new OutlineableImage({ img, vectors }))
       displayGallery()
-    });
+    })
   } else {
     console.log('Not an image file or image-outline bundle!')
   }
@@ -637,7 +734,7 @@ const displayGallery = () => {
   for (let gridY = 0; gridY < tileCountY; gridY++) {
     for (let gridX = 0; gridX < tileCountX; gridX++) {
       const index = i + config.galleryOffset
-      if (index  >= cimages.outlineds.length) {
+      if (index >= cimages.outlineds.length) {
         fill(255)
         text(
           'Drop to upload',
@@ -649,7 +746,7 @@ const displayGallery = () => {
         const tmp = cimages.outlineds[i + config.galleryOffset].image
         image(tmp, gridX * tileWidth, gridY * tileHeight, tileWidth, tileHeight)
 
-        if (config.selectedIndex === index ) {
+        if (config.selectedIndex === index) {
           noFill()
           stroke('green')
           strokeWeight(4)
@@ -809,8 +906,8 @@ function mode2 () {
   random(sounds).play()
 }
 
-function shuffleArray(array) {
-  return array.sort(() => Math.random() - 0.5);
+function shuffleArray (array) {
+  return array.sort(() => Math.random() - 0.5)
 }
 
 function splitArrayByRatio (arr, ratios) {
@@ -836,37 +933,37 @@ function splitArrayByRatio (arr, ratios) {
   return result
 }
 
-const outlined = (img) => {
-  const s = 20; // thickness scale
-  const x = 5; // final position
-  const y = 5;
-  const target = createGraphics(img.width+2*s, img.height+2*s);
-    const dArr = [-1, -1, 0, -1, 1, -1, -1, 0, 1, 0, -1, 1, 0, 1, 1, 1]; // offset array
+const outlined = img => {
+  const s = 20 // thickness scale
+  const x = 5 // final position
+  const y = 5
+  const target = createGraphics(img.width + 2 * s, img.height + 2 * s)
+  const dArr = [-1, -1, 0, -1, 1, -1, -1, 0, 1, 0, -1, 1, 0, 1, 1, 1] // offset array
 
   // Draw images at offsets from the array scaled by s
   for (let i = 0; i < dArr.length; i += 2) {
-    target.image(img, x + dArr[i] * s, y + dArr[i + 1] * s);
+    target.image(img, x + dArr[i] * s, y + dArr[i + 1] * s)
   }
 
   // Create a new graphics buffer
-  let buffer = createGraphics(img.width+2*s, img.height+2*s);
+  let buffer = createGraphics(img.width + 2 * s, img.height + 2 * s)
 
   // Draw a colored rectangle on the buffer
-  buffer.fill(0);
-  buffer.rect(0, 0, width+2*s, height+2*s);
+  buffer.fill(0)
+  buffer.rect(0, 0, width + 2 * s, height + 2 * s)
 
   // Set the blend mode of the canvas to "source-in"
-  target.drawingContext.globalCompositeOperation = "source-in";
+  target.drawingContext.globalCompositeOperation = 'source-in'
 
   // Draw the buffer on the canvas
-  target.image(buffer, 0, 0);
+  target.image(buffer, 0, 0)
 
   // Reset the blend mode of the canvas
-  target.drawingContext.globalCompositeOperation = "source-over";
+  target.drawingContext.globalCompositeOperation = 'source-over'
 
   // Draw original image in normal mode
-  target.image(img, x, y);
-  
+  target.image(img, x, y)
+
   return target
 }
 
@@ -878,59 +975,63 @@ const layerGen = {
 
 layerGen.genLayer0 = imgs => {
   return () =>
-    generateCollageItems(
-      imgs,
-      int(random(2, 10)),
-      0,
-      target.height / 2,
-      PI * 5,
-      target.height,
-      0.5,
-      1.5,
-      0,
-      0
-    )
+    generateCollageItems({
+      imgObjs: imgs,
+      count: int(random(2, 10)),
+      angle: 0,
+      length: target.height / 2,
+      rangeA: PI * 5,
+      rangeL: target.height,
+      scaleStart: 0.4,
+      scaleEnd: 1.5,
+      rotationStart: 0,
+      rotationEnd: 0
+    })
 }
 
 layerGen.genLayer1 = imgs => {
   return () =>
-    generateCollageItems(
-      imgs,
-      int(random(10, 25)),
-      0,
-      target.height / 2,
-      PI * 5,
-      target.height,
-      0.1,
-      random(0.8, 2.0),
-      -PI / 6,
-      PI / 65
-    )
+    generateCollageItems({
+      imgObjs: imgs,
+      count: int(random(10, 25)),
+      angle: 90,
+      length: target.height / 2,
+      rangeA: PI * 5,
+      rangeL: target.height,
+      scaleStart: 0.1,
+      scaleEnd: random(0.8, 2.0),
+      rotationStart: -PI / 6,
+      rotationEnd: PI / 6
+    })
 }
-
+// TODO: expoe these parameters in GUI so I can understand how they work!
 layerGen.genLayer2 = imgs => {
   return () =>
-    generateCollageItems(
-      imgs,
-      int(random(10, 25)),
-      0,
-      target.height / 2,
-      PI * 5,
-      target.height,
-      0.3,
-      3.0,
-      // 0.1,
-      // random(0.2, 0.5),
-      -0.05,
-      0.05
-    )
+    generateCollageItems({
+      imgObjs: imgs,
+      count: int(random(10, 25)),
+      angle: config.layer2Config.angle,
+      length: config.layer2Config.length, // target.height / 2,
+      rangeA: config.layer2Config.rangeA, // PI * 5,
+      rangeL: config.layer2Config.rangeL, // target.height,
+      scaleStart: config.layer2Config.scaleStart, // 0.3, // 0.1,
+      scaleEnd: config.layer2Config.scaleEnd, // 3.0, // random(0.8, 2.0),
+      rotationStart: config.layer2Config.rotationStart,
+      rotationEnd: config.layer2Config.rotationEnd
+    })
 }
 
+// shift-1,2,3 to redraw (& randomize?) that layer
+// mode3 randomizes, so not doing mode3 again does not re-randomize. boom!
+// it would be nice to wiggle, shuffle, change sizes, do a rotation of each level for while....
 function mode3 () {
   activity = activityModes.Drawing
   config.currentMode = mode3
 
-  circularCollections = splitArrayByRatio(shuffleArray(cimages.outlineds), [11, 5, 22])
+  circularCollections = splitArrayByRatio(
+    shuffleArray(cimages.outlineds),
+    [11, 5, 22]
+  )
 
   circularLayers[0] = layerGen.genLayer0(circularCollections[0])()
   circularLayers[1] = layerGen.genLayer1(circularCollections[1])()
@@ -943,7 +1044,10 @@ const drawMode3 = layers => {
   // I keep changing my mind on this
   target.background(255)
   target.imageMode(CENTER)
-  for (let l of layers) drawCollageitems(l)
+  // drawing in reverse because.... layer 3 is the largest, always ???
+  for (let i = layers.length - 1; i >= 0; i--) {
+    drawCollageitems(layers[i])
+  }
   if (config.outline) {
     target.strokeWeight(config.outlineWeight)
     target.stroke('black')
@@ -956,7 +1060,7 @@ const drawMode3 = layers => {
   random(sounds).play()
 }
 
-function generateCollageItems (
+function generateCollageItems ({
   imgObjs,
   count,
   angle,
@@ -967,7 +1071,7 @@ function generateCollageItems (
   scaleEnd,
   rotationStart,
   rotationEnd
-) {
+}) {
   var layerItems = []
   for (let i = 0; i < imgObjs.length; i++) {
     const img = imgObjs[i]
@@ -977,8 +1081,7 @@ function generateCollageItems (
       item.l = length + random(-rangeL / 2, rangeL / 2)
       item.scaling = random(scaleStart, scaleEnd)
       // item.thickness = config.outlineWeight
-      item.rotation =
-        item.angle + HALF_PI + random(rotationStart, rotationEnd)
+      item.rotation = item.angle + HALF_PI + random(rotationStart, rotationEnd)
       layerItems.push(item)
     }
   }
@@ -1018,7 +1121,7 @@ function drawCollageitems (layerItems) {
       target.height / 2 + sin(item.angle) * item.l
     )
     target.rotate(item.rotation)
-    item.oi.draw({x:0,y:0, scaling: item.scaling, target, config })
+    item.oi.draw({ x: 0, y: 0, scaling: item.scaling, target, config })
     target.pop()
   }
 }
