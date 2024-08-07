@@ -715,7 +715,7 @@ const getImageVectorKeys = zip => {
 async function handleFile (file) {
   if (file.type === 'image') {
     loadImage(file.data, img => {
-      let croppedImg = squareCrop(img)
+      const croppedImg = squareCrop(img)
       croppedImg.resize(target.width, 0)
       cimages.addImage(new CollageImage(img, croppedImg))
       displayGallery()
