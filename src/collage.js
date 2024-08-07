@@ -9,6 +9,54 @@ import 'p5js-wrapper/sound'
 import { datestring, filenamer } from './filelib'
 import { CollageImage, OutlineableImage, Images } from './images'
 
+const overlay = document.getElementById('overlay')
+const toggleOverlay = () => {
+  overlay.classList.toggle('active')
+}
+
+const buildGallery = cimgs => {
+  if (overlay.classList.contains('active')) {
+    return
+  } else {
+    overlay.classList.toggle('active')
+  }
+
+  const imagesContainer = document.getElementById('images')
+  imagesContainer.replaceChildren()
+
+  let selectedImage
+  let changeImage = false
+
+  function selectImage (e) {
+    selectedImage = e
+    changeImage = true
+    img = loadImage(selectedImage)
+
+    overlay.classList.toggle('active')
+  }
+
+  for (let i = 0; i < cimgs.images.length; i++) {
+    const img = document.createElement('img')
+    // let source = './data/img/' + i + '.jpg'
+    const source = cimgs.images[i].cropped.canvas.toDataURL()
+    img.src = source
+    img.addEventListener('click', () => {
+      selectImage(source)
+    })
+    imagesContainer.appendChild(img)
+  }
+  for (let i = 0; i < cimgs.outlineds.length; i++) {
+    const img = document.createElement('img')
+    // let source = './data/img/' + i + '.jpg'
+    const source = cimgs.outlineds[i].image.canvas.toDataURL()
+    img.src = source
+    img.addEventListener('click', () => {
+      selectImage(source)
+    })
+    imagesContainer.appendChild(img)
+  }
+}
+
 const sounds = [] // array for sound effects
 let actionSound // Sound for actions inclu save, blend & clear uploads
 let images = [] // array for source images
@@ -21,7 +69,7 @@ let isBlended = false // Initial bool value of the image blending status
 let img // single image buffer
 let displayCanvas // canvas
 
-let COLS = createCols('https://coolors.co/bcf8ec-aed9e0-9fa0c3-8b687f-7b435b')
+const COLS = createCols('https://coolors.co/bcf8ec-aed9e0-9fa0c3-8b687f-7b435b')
 
 const activityModes = {
   Drawing: 'draw',
@@ -29,7 +77,7 @@ const activityModes = {
 }
 let activity = activityModes.Drawing
 
-let addins = {
+const addins = {
   Pattern: 'pattern',
   Solid: 'solid'
 }
@@ -41,7 +89,7 @@ const fragmentStrategies = {
   RANDOM: 'random'
 }
 
-let resetCircularLayers = () => [[], [], []]
+const resetCircularLayers = () => [[], [], []]
 
 // combine these?
 let circularLayers = resetCircularLayers()
@@ -485,6 +533,15 @@ function setupButtons () {
   resetBtn.style('padding-top', '3px')
   resetBtn.style('padding-bottom', '3px')
   resetBtn.hide()
+
+  const galleryBtn = createButton('new gallery')
+  galleryBtn.mousePressed(toggleOverlay)
+  galleryBtn.position(btnX, btnYStart + btnYStep * 12) // sub-optimal
+  galleryBtn.style('background-color', blackTrans)
+  galleryBtn.style('color', white)
+  galleryBtn.style('border', 'none')
+  galleryBtn.style('padding-top', '3px')
+  galleryBtn.style('padding-bottom', '3px')
 }
 
 sketch.draw = () => {
@@ -727,6 +784,8 @@ const displayGallery = () => {
   textSize(12)
   textAlign(CENTER)
 
+  buildGallery(cimages)
+  return
   // if image count > 9 but less than 17 (or 25?) increase to 4 or 5
   // or just jump straight to "scrolling" the images?
   let i = 0

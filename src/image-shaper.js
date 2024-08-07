@@ -21,7 +21,7 @@ let sketch1 = new p5(p5 => {
     reset()
   }
 
-  const handleFile = (file) => {
+  const handleFile = file => {
     if (file.type === 'image') {
       p5.loadImage(file.data, img => {
         imgOriginal = img
@@ -48,7 +48,7 @@ let sketch1 = new p5(p5 => {
   let selectionShape = new Shape(p5)
 
   const reset = () => {
-    p5.resizeCanvas(imgOriginal.width, imgOriginal.height);
+    p5.resizeCanvas(imgOriginal.width, imgOriginal.height)
     p5.image(imgOriginal, p5.width / 2, p5.height / 2)
     activity = activityModes.Selecting
     selectionShape = new Shape(p5)
@@ -58,27 +58,23 @@ let sketch1 = new p5(p5 => {
     selectionShape.makeCutout(imgOriginal)
     activity = activityModes.Display
     p5.cursor()
-    let { croppedImg, croppedVecs } = cropImageVecs(
+    const { croppedImg, croppedVecs } = cropImageVecs(
       selectionShape.cutout,
       selectionShape.points
     )
     croppedVectors = croppedVecs
     p5.resizeCanvas(croppedImg.width, croppedImg.height)
     p5.clear()
-    p5.image(
-      croppedImg,
-      p5.width / 2,
-      p5.height / 2,
-    )
+    p5.image(croppedImg, p5.width / 2, p5.height / 2)
   }
 
   function cropImageVecs (img, points) {
     // use the shape vectors to get bounding box
-    let left = img.width,
-      right = 0,
-      top = img.height,
-      bottom = 0
-    for (let v of points) {
+    let left = img.width
+    let right = 0
+    let top = img.height
+    let bottom = 0
+    for (const v of points) {
       left = Math.min(left, v.x)
       right = Math.max(right, v.x)
       top = Math.min(top, v.y)

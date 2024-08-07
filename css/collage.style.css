@@ -2,9 +2,43 @@ html, body {
   margin: 0;
   padding: 0;
 }
+
 canvas {
   display: block;
   margin: auto;
   margin-top: 50px;
   display: block;
+}
+
+aside {
+  position: fixed;
+  right: -100vw;
+  top:0;
+
+  
+  height: 100vh;
+  width: calc(100vw - 300px);
+  background:#f1f1f1;
+  transition: right 0.3s ease;
+  overflow-y: scroll;
+}
+
+#images {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+
+}
+
+#images img {
+  max-width: 200px;
+  padding: 1px;
+  cursor: pointer;
+}
+
+aside.active {
+  right: 0;
+}
+
+img {
+  width: 100%;
 }
