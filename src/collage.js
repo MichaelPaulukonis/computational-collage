@@ -11,8 +11,8 @@ import { CollageImage, OutlineableImage, Images } from './images'
 
 const sounds = [] // array for sound effects
 let actionSound // Sound for actions inclu save, blend & clear uploads
-let images = [] // array for source images
-let cimages = new Images()
+const images = [] // array for source images
+const cimages = new Images()
 let patternImages = []
 let solids = []
 const userUploads = [] // buffer array for storing user uploads
@@ -21,7 +21,7 @@ let isBlended = false // Initial bool value of the image blending status
 let img // single image buffer
 let displayCanvas // canvas
 
-let COLS = createCols('https://coolors.co/bcf8ec-aed9e0-9fa0c3-8b687f-7b435b')
+const COLS = createCols('https://coolors.co/bcf8ec-aed9e0-9fa0c3-8b687f-7b435b')
 
 const activityModes = {
   Drawing: 'draw',
@@ -29,7 +29,7 @@ const activityModes = {
 }
 let activity = activityModes.Drawing
 
-let addins = {
+const addins = {
   Pattern: 'pattern',
   Solid: 'solid'
 }
@@ -41,10 +41,10 @@ const fragmentStrategies = {
   RANDOM: 'random'
 }
 
-let resetCircularLayers = () => [[], [], []]
+const resetCircularLayers = () => [[], [], []]
 
 // combine these?
-let circularLayers = resetCircularLayers()
+const circularLayers = resetCircularLayers()
 let circularCollections = [[], [], []]
 
 const circularLayerConfig = (ang, rs, re, ss, se, ra, rl, l) => ({
@@ -61,7 +61,7 @@ const circularLayerConfig = (ang, rs, re, ss, se, ra, rl, l) => ({
 const rand = (min, max) => Math.random() * (max - min + 1) + min
 
 // zero-index, and don't you forget it!
-let layer0Config = circularLayerConfig(
+const layer0Config = circularLayerConfig(
   0,
   0,
   0,
@@ -72,7 +72,7 @@ let layer0Config = circularLayerConfig(
   1000
 )
 // NOTE: scaleEnd was original a random int
-let layer1Config = circularLayerConfig(
+const layer1Config = circularLayerConfig(
   90,
   -Math.PI / 6,
   Math.PI / 6,
@@ -82,7 +82,7 @@ let layer1Config = circularLayerConfig(
   2000,
   1000
 )
-let layer2Config = circularLayerConfig(0, -5, 5, 0.3, 3.0, 15, 1000, 1000)
+const layer2Config = circularLayerConfig(0, -5, 5, 0.3, 3.0, 15, 1000, 1000)
 
 const config = {
   addin: addins.Solid,
@@ -272,7 +272,7 @@ sketch.setup = () => {
   })
 
   for (let i = 0; i < images.length; i++) {
-    let croppedImg = squareCrop(images[i])
+    const croppedImg = squareCrop(images[i])
     croppedImg.resize(target.width, 0)
     cimages.addImage(new CollageImage(images[i], croppedImg))
   }
@@ -307,14 +307,12 @@ const getColorSolids = () => {
 }
 
 const makeSolids = (colors = null) => {
-  colors = colors
-    ? colors
-    : ['tomato', 'powderblue', 'yellowgreen', 'white', 'salmon', 'turquoise']
-  let temp = createGraphics(500, 500)
+  colors = colors || ['tomato', 'powderblue', 'yellowgreen', 'white', 'salmon', 'turquoise']
+  const temp = createGraphics(500, 500)
 
   solids = colors.map(color => {
     temp.background(color)
-    let img = createImage(2000, 2000)
+    const img = createImage(2000, 2000)
     img.copy(temp, 0, 0, 500, 500, 0, 0, 2000, 2000)
     return img
   })
@@ -322,8 +320,8 @@ const makeSolids = (colors = null) => {
 }
 
 const makePatterns = () => {
-  let pats = []
-  let temp = createGraphics(500, 500)
+  const pats = []
+  const temp = createGraphics(500, 500)
   const palette = shuffle(COLS, true)
 
   const xSpan = 500
@@ -338,25 +336,25 @@ const makePatterns = () => {
     const rn = random()
     if (rn > 0.66) temp.rectPattern(0, 0, xSpan, ySpan, xSpan, 0, 0, 0)
     else if (rn > 0.33)
-      temp.arcPattern(
+      {temp.arcPattern(
         xSpan / 2,
         ySpan / 2,
         xSpan * 2,
         ySpan * 2,
         PI,
         (TAU / 4) * 3
-      )
+      )}
     else
-      temp.trianglePattern(
+      {temp.trianglePattern(
         xSpan / 2,
         ySpan / 2,
         -xSpan / 2,
         ySpan / 2,
         xSpan / 2,
         -ySpan / 2
-      )
+      )}
 
-    let img = createImage(2000, 2000)
+    const img = createImage(2000, 2000)
     img.copy(temp, 0, 0, 500, 500, 0, 0, img.width, img.height)
     console.log(`created pattern ${i + 1}`)
     pats.push(img)
@@ -505,7 +503,7 @@ const mouseWithinCanvas = () => {
 sketch.mousePressed = () => {
   if (activity === activityModes.Gallery && mouseWithinCanvas()) {
     const tileSize = Math.floor(displayCanvas.width / config.galleryTileWidth)
-    let clickedIndex =
+    const clickedIndex =
       floor(mouseX / tileSize) +
       floor(mouseY / tileSize) * config.galleryTileWidth +
       config.galleryOffset
@@ -553,8 +551,8 @@ sketch.keyPressed = () => {
           ? origIndex
           : config.selectedIndex + config.galleryOffset >=
             cimages.outlineds.length
-          ? origIndex
-          : config.selectedIndex
+            ? origIndex
+            : config.selectedIndex
     }
     displayGallery()
   }
@@ -648,9 +646,9 @@ function dropFiles () {
 }
 
 const getImageVectorKeys = zip => {
-  let names = Object.keys(zip.files)
-  let imageName = names.find(n => n.endsWith('png'))
-  let vectorName = names.find(n => n.endsWith('json'))
+  const names = Object.keys(zip.files)
+  const imageName = names.find(n => n.endsWith('png'))
+  const vectorName = names.find(n => n.endsWith('json'))
   return { imageName, vectorName }
 }
 
@@ -658,19 +656,19 @@ const getImageVectorKeys = zip => {
 async function handleFile (file) {
   if (file.type === 'image') {
     loadImage(file.data, img => {
-      let croppedImg = squareCrop(img)
+      const croppedImg = squareCrop(img)
       croppedImg.resize(target.width, 0)
       cimages.addImage(new CollageImage(img, croppedImg))
       displayGallery()
     })
   } else if (file.subtype === 'zip') {
     const zip = await JSZip.loadAsync(file.file)
-    let { imageName, vectorName } = getImageVectorKeys(zip)
+    const { imageName, vectorName } = getImageVectorKeys(zip)
     const jsonData = await zip.file(vectorName).async('string')
-    let vectors = JSON.parse(jsonData)
+    const vectors = JSON.parse(jsonData)
 
     const data = await zip.file(imageName).async('blob')
-    var objectURL = URL.createObjectURL(data)
+    let objectURL = URL.createObjectURL(data)
     loadImage(objectURL, img => {
       cimages.addImage(new OutlineableImage({ img, vectors }))
       displayGallery()
@@ -879,7 +877,7 @@ function mode2 () {
     const strip = img.get(stripX, stripY, stripW, stripH)
 
     if (config.circle) {
-      let customMask = createGraphics(stripW, stripH)
+      const customMask = createGraphics(stripW, stripH)
       customMask.noStroke()
       customMask.fill(255)
       customMask.circle(stripW / 2, stripH / 2, Math.min(stripH, stripW))
@@ -946,7 +944,7 @@ const outlined = img => {
   }
 
   // Create a new graphics buffer
-  let buffer = createGraphics(img.width + 2 * s, img.height + 2 * s)
+  const buffer = createGraphics(img.width + 2 * s, img.height + 2 * s)
 
   // Draw a colored rectangle on the buffer
   buffer.fill(0)
@@ -1072,11 +1070,11 @@ function generateCollageItems ({
   rotationStart,
   rotationEnd
 }) {
-  var layerItems = []
+  let layerItems = []
   for (let i = 0; i < imgObjs.length; i++) {
     const img = imgObjs[i]
     for (let j = 0; j < count; j++) {
-      var item = new OutlineableCollageItem(img, null, config.outlineWeight)
+      let item = new OutlineableCollageItem(img, null, config.outlineWeight)
       item.angle = angle + random(-rangeA / 2, rangeA / 2)
       item.l = length + random(-rangeL / 2, rangeL / 2)
       item.scaling = random(scaleStart, scaleEnd)
@@ -1112,7 +1110,7 @@ function drawCollageitems (layerItems) {
     target.stroke('black')
   }
 
-  for (var i = 0; i < layerItems.length; i++) {
+  for (let i = 0; i < layerItems.length; i++) {
     const item = layerItems[i]
     const img = item.image
     target.push()
@@ -1174,13 +1172,13 @@ function mode5 () {
   // these are not strips, they are overall images
   // but still, not as many showing up as expected
   for (let i = 0; i < config.stripCount; i++) {
-    let cf = coinflip()
+    const cf = coinflip()
     img = cf
       ? random(
-          config.addin === addins.Solid || !config.patternsReady
-            ? solids
-            : patternImages
-        )
+        config.addin === addins.Solid || !config.patternsReady
+          ? solids
+          : patternImages
+      )
       : cimages.random.cropped
 
     const stripW = random(config.stripMin, config.stripMax)
@@ -1222,7 +1220,7 @@ function mode5 () {
     }
 
     if (config.circle) {
-      let customMask = createGraphics(stripW, stripH)
+      const customMask = createGraphics(stripW, stripH)
       customMask.noStroke()
       customMask.fill(255)
       customMask.circle(stripW / 2, stripH / 2, Math.min(stripH, stripW))
@@ -1514,9 +1512,9 @@ function blendLightest () {
 }
 
 function createCols (url) {
-  let slaIndex = url.lastIndexOf('/')
-  let colStr = url.slice(slaIndex + 1)
-  let colArr = colStr.split('-')
+  const slaIndex = url.lastIndexOf('/')
+  const colStr = url.slice(slaIndex + 1)
+  const colArr = colStr.split('-')
   for (let i = 0; i < colArr.length; i++) colArr[i] = '#' + colArr[i]
   return colArr
 }
@@ -1527,17 +1525,17 @@ function getDominantColors (img, numColors, colorDistance = 8) {
 
   // Get the pixel data
   img.loadPixels()
-  let pixels = img.pixels
+  const pixels = img.pixels
 
   // Create a histogram of the pixel colors
-  let histogram = {}
+  const histogram = {}
   for (let i = 0; i < pixels.length; i += 4) {
-    let r = pixels[i]
-    let g = pixels[i + 1]
-    let b = pixels[i + 2]
+    const r = pixels[i]
+    const g = pixels[i + 1]
+    const b = pixels[i + 2]
 
     // Group similar colors together
-    let key = `${Math.round(r / colorDistance) * colorDistance},${
+    const key = `${Math.round(r / colorDistance) * colorDistance},${
       Math.round(g / colorDistance) * colorDistance
     },${Math.round(b / colorDistance) * colorDistance}`
     if (histogram[key]) {
@@ -1548,7 +1546,7 @@ function getDominantColors (img, numColors, colorDistance = 8) {
   }
 
   // Sort the histogram by frequency and get the top numColors colors
-  let sortedColors = Object.entries(histogram)
+  const sortedColors = Object.entries(histogram)
     .sort((a, b) => b[1] - a[1])
     .slice(0, numColors)
     .map(entry => {
