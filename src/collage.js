@@ -14,46 +14,36 @@ const toggleOverlay = () => {
   overlay.classList.toggle('active')
 }
 
+function addImageToGallery (source) {
+  const img = document.createElement('img')
+  img.src = source
+  img.addEventListener('click', () => {
+    selectImage(source)
+  })
+  imagesContainer.appendChild(img)
+}
+
+function selectImage (e) {
+  const selectedImage = e
+  // changeImage = true
+  img = loadImage(selectedImage)
+
+  overlay.classList.toggle('active')
+}
+
+const imagesContainer = document.getElementById('images')
+
 const buildGallery = cimgs => {
-  if (overlay.classList.contains('active')) {
-    return
-  } else {
-    overlay.classList.toggle('active')
-  }
-
-  const imagesContainer = document.getElementById('images')
-  imagesContainer.replaceChildren()
-
-  let selectedImage
-  let changeImage = false
-
-  function selectImage (e) {
-    selectedImage = e
-    changeImage = true
-    img = loadImage(selectedImage)
-
-    overlay.classList.toggle('active')
-  }
+  // imagesContainer.replaceChildren()
+  // let changeImage = false
 
   for (let i = 0; i < cimgs.images.length; i++) {
-    const img = document.createElement('img')
-    // let source = './data/img/' + i + '.jpg'
     const source = cimgs.images[i].cropped.canvas.toDataURL()
-    img.src = source
-    img.addEventListener('click', () => {
-      selectImage(source)
-    })
-    imagesContainer.appendChild(img)
+    addImageToGallery(source)
   }
   for (let i = 0; i < cimgs.outlineds.length; i++) {
-    const img = document.createElement('img')
-    // let source = './data/img/' + i + '.jpg'
     const source = cimgs.outlineds[i].image.canvas.toDataURL()
-    img.src = source
-    img.addEventListener('click', () => {
-      selectImage(source)
-    })
-    imagesContainer.appendChild(img)
+    addImageToGallery(source)
   }
 }
 
@@ -204,6 +194,16 @@ sketch.preload = () => {
 sketch.setup = () => {
   displayCanvas = createCanvas(500, 500)
   displayCanvas.drop(handleFile)
+
+  overlay.addEventListener('drop', event => {
+    event.preventDefault()
+    for (const item of event.dataTransfer.files) handleFile(item)
+  })
+  // Prevent the default behavior for dragover events
+  overlay.addEventListener('dragover', event => {
+    event.preventDefault()
+  })
+
   target = createGraphics(displayCanvas.width * 4, displayCanvas.height * 4)
   makeSolids()
 
@@ -327,6 +327,7 @@ sketch.setup = () => {
 
   background(0)
 
+  buildGallery(cimages)
   displayGallery()
   random(sounds).play()
 }
@@ -716,18 +717,22 @@ async function handleFile (file) {
       const croppedImg = squareCrop(img)
       croppedImg.resize(target.width, 0)
       cimages.addImage(new CollageImage(img, croppedImg))
+      const source = croppedImg.canvas.toDataURL()
+      addImageToGallery(source)
       displayGallery()
     })
-  } else if (file.subtype === 'zip') {
-    const zip = await JSZip.loadAsync(file.file)
+  } else if (file.type === 'application/zip' || file.subtype === 'zip') {
+    const zip = await JSZip.loadAsync(file)
     const { imageName, vectorName } = getImageVectorKeys(zip)
     const jsonData = await zip.file(vectorName).async('string')
     const vectors = JSON.parse(jsonData)
 
     const data = await zip.file(imageName).async('blob')
-    let objectURL = URL.createObjectURL(data)
+    const objectURL = URL.createObjectURL(data)
     loadImage(objectURL, img => {
       cimages.addImage(new OutlineableImage({ img, vectors }))
+      const source = img.canvas.toDataURL()
+      addImageToGallery(source)
       displayGallery()
     })
   } else {
@@ -782,7 +787,13 @@ const displayGallery = () => {
   textSize(12)
   textAlign(CENTER)
 
-  buildGallery(cimages)
+  if (overlay.classList.contains('active')) {
+    return
+  } else {
+    overlay.classList.toggle('active')
+  }
+
+  // buildGallery(cimages)
   return
   // if image count > 9 but less than 17 (or 25?) increase to 4 or 5
   // or just jump straight to "scrolling" the images?
