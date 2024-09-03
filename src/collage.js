@@ -10,9 +10,6 @@ import { datestring, filenamer } from './filelib'
 import { CollageImage, OutlineableImage, Images } from './images'
 
 const overlay = document.getElementById('overlay')
-const toggleOverlay = () => {
-  overlay.classList.toggle('active')
-}
 
 function addImageToGallery (source) {
   const img = document.createElement('img')
@@ -26,17 +23,14 @@ function addImageToGallery (source) {
 function selectImage (e) {
   const selectedImage = e
   // changeImage = true
-  img = loadImage(selectedImage)
-
-  overlay.classList.toggle('active')
+  // img = loadImage(selectedImage)
+  // TODO: other stuff, set selected
+  // overlay.classList.toggle('active')
 }
 
 const imagesContainer = document.getElementById('images')
 
 const buildGallery = cimgs => {
-  // imagesContainer.replaceChildren()
-  // let changeImage = false
-
   for (let i = 0; i < cimgs.images.length; i++) {
     const source = cimgs.images[i].cropped.canvas.toDataURL()
     addImageToGallery(source)
@@ -62,10 +56,10 @@ let displayCanvas // canvas
 const COLS = createCols('https://coolors.co/bcf8ec-aed9e0-9fa0c3-8b687f-7b435b')
 
 const activityModes = {
-  Drawing: 'draw',
-  Gallery: 'gallery'
+  DRAWING: 'draw',
+  GALLERY: 'gallery'
 }
-let activity = activityModes.Drawing
+let activity = activityModes.DRAWING
 
 const addins = {
   Pattern: 'pattern',
@@ -328,7 +322,7 @@ sketch.setup = () => {
   background(0)
 
   buildGallery(cimages)
-  displayGallery()
+  toggleGallery()
   random(sounds).play()
 }
 
@@ -532,19 +526,10 @@ function setupButtons () {
   resetBtn.style('padding-top', '3px')
   resetBtn.style('padding-bottom', '3px')
   resetBtn.hide()
-
-  const galleryBtn = createButton('new gallery')
-  galleryBtn.mousePressed(toggleOverlay)
-  galleryBtn.position(btnX, btnYStart + btnYStep * 12) // sub-optimal
-  galleryBtn.style('background-color', blackTrans)
-  galleryBtn.style('color', white)
-  galleryBtn.style('border', 'none')
-  galleryBtn.style('padding-top', '3px')
-  galleryBtn.style('padding-bottom', '3px')
 }
 
 sketch.draw = () => {
-  if (activity === activityModes.Gallery) {
+  if (activity === activityModes.GALLERY) {
   }
 }
 
@@ -559,7 +544,8 @@ const mouseWithinCanvas = () => {
 
 // this is START of press
 sketch.mousePressed = () => {
-  if (activity === activityModes.Gallery && mouseWithinCanvas()) {
+  // TODO: oh is now completely different
+  if (activity === activityModes.GALLERY && mouseWithinCanvas()) {
     const tileSize = Math.floor(displayCanvas.width / config.galleryTileWidth)
     const clickedIndex =
       floor(mouseX / tileSize) +
@@ -568,12 +554,11 @@ sketch.mousePressed = () => {
     if (clickedIndex < cimages.outlineds.length) {
       config.selectedIndex = clickedIndex
     }
-    displayGallery()
   }
 }
 
 sketch.keyPressed = () => {
-  if (activity === activityModes.Gallery) {
+  if (activity === activityModes.GALLERY) {
     // off-screen movement is better guarded against, now
     // it would be NICE if simple up/down/left/right
     // also modified offsets, if required
@@ -612,7 +597,6 @@ sketch.keyPressed = () => {
             ? origIndex
             : config.selectedIndex
     }
-    displayGallery()
   }
 }
 
@@ -627,13 +611,16 @@ sketch.keyTyped = () => {
     drawMode3(circularLayers)
   } else if ('0123456789'.includes(key)) {
     modes[key][0]()
-  } else if (activity === activityModes.Gallery) {
+  } else if (activity === activityModes.GALLERY) {
     if (key === 'x') {
+      // TODO: more complicated
       deleteImage(config.selectedIndex)
-      displayGallery()
+      // toggleGallery()
     } else if (key === 'c') {
       clearUploads()
       namer = filenamer(datestring())
+    } else if (key === 'g') {
+      toggleGallery()
     }
   } else {
     if (key === 's') {
@@ -647,7 +634,7 @@ sketch.keyTyped = () => {
     } else if (key === 'd') {
       duplicateRecrop()
     } else if (key === 'g') {
-      displayGallery()
+      toggleGallery()
     } else if (key === 'u') {
       dropFiles()
     } else if (key === 'o') {
@@ -712,14 +699,13 @@ const getImageVectorKeys = zip => {
 
 // Handle file uploads
 async function handleFile (file) {
-  if (file.type === 'image') {
-    loadImage(file.data, img => {
+  if (file.type === 'image' || file.type === 'image/png') {
+    loadImage(URL.createObjectURL(file), img => {
       const croppedImg = squareCrop(img)
       croppedImg.resize(target.width, 0)
       cimages.addImage(new CollageImage(img, croppedImg))
       const source = croppedImg.canvas.toDataURL()
       addImageToGallery(source)
-      displayGallery()
     })
   } else if (file.type === 'application/zip' || file.subtype === 'zip') {
     const zip = await JSZip.loadAsync(file)
@@ -733,7 +719,6 @@ async function handleFile (file) {
       cimages.addImage(new OutlineableImage({ img, vectors }))
       const source = img.canvas.toDataURL()
       addImageToGallery(source)
-      displayGallery()
     })
   } else {
     console.log('Not an image file or image-outline bundle!')
@@ -749,7 +734,8 @@ const duplicateRecrop = () => {
   cloned.cropped.resize(target.width, 0)
   cimages.addImage(cloned)
   config.cropStrategy = tempCropMode
-  displayGallery()
+  const source = cloned.cropped.canvas.toDataURL()
+    addImageToGallery(source)
 }
 
 // Clear upload files
@@ -773,27 +759,18 @@ function download () {
   console.log('downloaded ' + name)
 }
 
+const hideGallery = () => {
+  overlay.classList.remove('active')
+}
 // Show input image gallery (no more than 9 for speed)
-const displayGallery = () => {
-  activity = activityModes.Gallery
-  config.currentMode = mode0
-  const tileCountX = config.galleryTileWidth
-  const tileCountY = config.galleryTileWidth
-
-  const tileWidth = displayCanvas.width / tileCountX
-  const tileHeight = displayCanvas.height / tileCountY
-  background(60)
-  noStroke()
-  textSize(12)
-  textAlign(CENTER)
-
+const toggleGallery = () => {
   if (overlay.classList.contains('active')) {
-    return
+    activity = activityModes.DRAWING
   } else {
-    overlay.classList.toggle('active')
+    activity = activityModes.GALLERY
+    config.currentMode = mode0
   }
-
-  // buildGallery(cimages)
+  overlay.classList.toggle('active')
   return
   // if image count > 9 but less than 17 (or 25?) increase to 4 or 5
   // or just jump straight to "scrolling" the images?
@@ -828,53 +805,6 @@ const displayGallery = () => {
   }
 }
 
-// Show input image gallery (no more than 9 for speed)
-const displayGallery_orig = () => {
-  activity = activityModes.Gallery
-  config.currentMode = mode0
-  const tileCountX = config.galleryTileWidth
-  const tileCountY = config.galleryTileWidth
-
-  const tileWidth = displayCanvas.width / tileCountX
-  const tileHeight = displayCanvas.height / tileCountY
-  background(60)
-  noStroke()
-  textSize(12)
-  textAlign(CENTER)
-
-  // if image count > 9 but less than 17 (or 25?) increase to 4 or 5
-  // or just jump straight to "scrolling" the images?
-  // TODO: add in the outlineables
-  let i = 0
-  // let imagesOffset = 0
-  for (let gridY = 0; gridY < tileCountY; gridY++) {
-    for (let gridX = 0; gridX < tileCountX; gridX++) {
-      if (i >= cimages.outlineds.length) {
-        fill(255)
-        text(
-          'Drop to upload',
-          gridX * tileWidth + tileWidth / 2,
-          gridY * tileHeight + tileHeight / 2
-        )
-      } else {
-        // let's do the outlineables FIRST
-        const tmp = cimages.outlineds[i + config.galleryOffset].image
-        image(tmp, gridX * tileWidth, gridY * tileHeight, tileWidth, tileHeight)
-
-        if (config.selectedIndex === i) {
-          noFill()
-          stroke('green')
-          strokeWeight(4)
-          rect(gridX * tileWidth, gridY * tileHeight, tileWidth, tileWidth)
-          displayCanvas.fill('black')
-          noStroke()
-        }
-      }
-      i++
-    }
-  }
-}
-
 const deleteImage = index => {
   cimages.outlineds.splice(index, 1)
   config.selectedIndex =
@@ -884,15 +814,20 @@ const deleteImage = index => {
 }
 
 function mode0 () {
-  displayGallery()
+  toggleGallery()
 
   sounds[0].play()
 }
 
+const modeInit = (mode) => {
+  activity = activityModes.DRAWING
+  config.currentMode = mode
+  hideGallery()
+}
+
 // Full-length strips
 function mode1 () {
-  activity = activityModes.Drawing
-  config.currentMode = mode1
+  modeInit(mode1)
   if (isHorizontal) {
     for (let y = 0; y < target.height; y += 10) {
       img = cimages.random.cropped
@@ -927,8 +862,7 @@ function mode1 () {
 
 // Collaging random chunks
 function mode2 () {
-  activity = activityModes.Drawing
-  config.currentMode = mode2
+  modeInit(mode2)
 
   target.image(cimages.random.cropped, 0, 0)
   if (config.outline) {
@@ -1093,8 +1027,7 @@ layerGen.genLayer2 = imgs => {
 // mode3 randomizes, so not doing mode3 again does not re-randomize. boom!
 // it would be nice to wiggle, shuffle, change sizes, do a rotation of each level for while....
 function mode3 () {
-  activity = activityModes.Drawing
-  config.currentMode = mode3
+  modeInit(mode3)
 
   circularCollections = splitArrayByRatio(
     shuffleArray(cimages.outlineds),
@@ -1196,8 +1129,7 @@ function drawCollageitems (layerItems) {
 
 // Floating pixels
 function mode4 () {
-  activity = activityModes.Drawing
-  config.currentMode = mode4
+  modeInit(mode4)
 
   target.fill(0)
   target.rect(0, 0, target.width, target.height)
@@ -1227,8 +1159,7 @@ function mode4 () {
 // this is an elaboration of mode2/mode7
 // try to integrate mode7 and make these more flexible?
 function mode5 () {
-  activity = activityModes.Drawing
-  config.currentMode = mode5
+  modeInit(mode5)
 
   const coinflip = () => random() < config.solidProb
   target.image(cimages.random.cropped, 0, 0)
@@ -1319,8 +1250,7 @@ function mode5 () {
 
 // Horizontal free strips
 function mode6 () {
-  activity = activityModes.Drawing
-  config.currentMode = mode6
+  modeInit(mode6)
 
   target.noStroke()
   const tileHeight = 5
@@ -1364,8 +1294,7 @@ function mode6 () {
 
 // Mondrian stripes
 function mode7 () {
-  activity = activityModes.Drawing
-  config.currentMode = mode7
+  modeInit(mode7)
 
   target.noStroke()
 
@@ -1384,8 +1313,7 @@ function mode7 () {
 
 // Horizontally stretched
 function mode8 () {
-  activity = activityModes.Drawing
-  config.currentMode = mode8
+  modeInit(mode8)
 
   target.noStroke()
   const backGrnd = cimages.random.cropped
@@ -1419,8 +1347,7 @@ function mode8 () {
 // Concentric circle splashes
 // variation ideas: single image, over circles on that
 function mode9 () {
-  activity = activityModes.Drawing
-  config.currentMode = mode9
+  modeInit(mode9)
 
   target.fill(0)
   target.noStroke()
