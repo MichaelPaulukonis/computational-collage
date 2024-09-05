@@ -1,6 +1,16 @@
 export class CollageImage {
-  constructor (img = null, cropped = null) {
+  constructor ({ img = null }) {
     this.orig = img
+  }
+
+  get original () {
+    return this.orig
+  }
+}
+
+export class CroppableImage extends CollageImage {
+  constructor ({ img = null, cropped = null }) {
+    super({ img })
     this.cropd = cropped
   }
 
@@ -12,36 +22,27 @@ export class CollageImage {
     this.cropd = cropped
   }
 
-  get original () {
-    return this.orig
-  }
-
-  // when would we ever do this ?!?!?!?!?
-  set original (original) {
-    this.orig = original
-  }
-
   get clone () {
     const tOrig = this.orig.get()
     const tCrop = this.cropd.get()
-    return new CollageImage(tOrig, tCrop)
+    return new CroppableImage(tOrig, tCrop)
   }
 }
 
-export class OutlineableImage {
-  constructor ({ img, vectors = []}) {
+export class OutlineableImage extends CollageImage {
+  constructor ({ img, vectors = [] }) {
+    super({ img })
     this.vectors = vectors
-    this.image = img
-    this.offset = { x: this.image.width / 2, y: this.image.height / 2 }
+    this.offset = { x: this.orig.width / 2, y: this.orig.height / 2 }
     this.scaling = 1
   }
 
-  get cropped () {
-    return this.image
-  }
+  // get cropped () {
+  //   return this.orig
+  // }
 
   get clone () {
-    const tImage = this.image.get()
+    const tImage = this.orig.get()
     const tVectors = JSON.parse(JSON.stringify(this.vectors))
     return new OutlineableImage({ img: tImage, vectors: tVectors})
   }
@@ -53,7 +54,7 @@ export class OutlineableImage {
       target.stroke(config.outlineColor)
       target.noFill()
       target.beginShape()
-      for (let v of this.vectors) {
+      for (const v of this.vectors) {
         target.vertex(
           (v.x + x - this.offset.x) * scaling,
           (v.y + y - this.offset.y) * scaling
@@ -62,11 +63,11 @@ export class OutlineableImage {
       target.endShape(CLOSE)
     }
     target.image(
-      this.image,
+      this.orig,
       x,
       y,
-      this.image.width * scaling,
-      this.image.height * scaling
+      this.orig.width * scaling,
+      this.orig.height * scaling
     )
   }
 }
@@ -74,30 +75,32 @@ export class OutlineableImage {
 // storage of CollageImage[]
 export class Images {
   constructor (images = [], outlined = []) {
-    this.imgs = images
-    this.outlined = outlined
+    this.imgs = [...images, ...outlined]
   }
 
   get images () {
     return this.imgs
   }
 
+  get croppeds () {
+    return this.imgs.filter(i => i instanceof CroppableImage)
+  }
+
   get outlineds () {
-    return this.outlined
+    return this.imgs.filter(i => i instanceof OutlineableImage)
   }
 
   get random () {
     // TODO: or random outlined images
-    return this.imgs[Math.floor(Math.random() * this.imgs.length)]
+    return this.croppeds[Math.floor(Math.random() * this.croppeds.length)]
   }
 
   addImage (imgobj) {
-    let coll = imgobj instanceof CollageImage ? this.imgs : this.outlined
-    coll.push(imgobj)
+    this.imgs.push(imgobj)
   }
 
-  clear () {
-    this.imgs = []
-    this.outlined = []
+  // will this work???
+  removeImage (imgobj) {
+    this.imgs = this.imgs.filter(i => i !== imgobj)
   }
 }

@@ -81,4 +81,6 @@ uses https://github.com/makinteract/p5js-vite?tab=readme-ov-file
 - shapes https://github.com/gaba5/p5.shape.js
 - https://c2js.org/examples.html?name=Chromosome3
 
+## new modes
 
+- "checkerboard" pattern - alternate squares from two images

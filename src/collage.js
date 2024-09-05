@@ -7,39 +7,10 @@ import 'p5js-wrapper/sound'
 // import './p5.pattern.js'
 // import { PTN } from './p5.pattern.js'
 import { datestring, filenamer } from './filelib'
-import { CollageImage, OutlineableImage, Images } from './images'
-
-const overlay = document.getElementById('overlay')
-
-function addImageToGallery (source) {
-  const img = document.createElement('img')
-  img.src = source
-  img.addEventListener('click', () => {
-    selectImage(source)
-  })
-  imagesContainer.appendChild(img)
-}
-
-function selectImage (e) {
-  const selectedImage = e
-  // changeImage = true
-  // img = loadImage(selectedImage)
-  // TODO: other stuff, set selected
-  // overlay.classList.toggle('active')
-}
+import { CroppableImage, OutlineableImage, Images } from './images'
 
 const imagesContainer = document.getElementById('images')
-
-const buildGallery = cimgs => {
-  for (let i = 0; i < cimgs.images.length; i++) {
-    const source = cimgs.images[i].cropped.canvas.toDataURL()
-    addImageToGallery(source)
-  }
-  for (let i = 0; i < cimgs.outlineds.length; i++) {
-    const source = cimgs.outlineds[i].image.canvas.toDataURL()
-    addImageToGallery(source)
-  }
-}
+const overlay = document.getElementById('overlay')
 
 const sounds = [] // array for sound effects
 let actionSound // Sound for actions inclu save, blend & clear uploads
@@ -314,9 +285,9 @@ sketch.setup = () => {
   })
 
   for (let i = 0; i < images.length; i++) {
-    const croppedImg = squareCrop(images[i])
-    croppedImg.resize(target.width, 0)
-    cimages.addImage(new CollageImage(images[i], croppedImg))
+    const cropped = squareCrop(images[i])
+    cropped.resize(target.width, 0)
+    cimages.addImage(new CroppableImage({ img: images[i], cropped }))
   }
 
   background(0)
@@ -350,7 +321,14 @@ const getColorSolids = () => {
 }
 
 const makeSolids = (colors = null) => {
-  colors = colors || ['tomato', 'powderblue', 'yellowgreen', 'white', 'salmon', 'turquoise']
+  colors = colors || [
+    'tomato',
+    'powderblue',
+    'yellowgreen',
+    'white',
+    'salmon',
+    'turquoise'
+  ]
   const temp = createGraphics(500, 500)
 
   solids = colors.map(color => {
@@ -378,24 +356,25 @@ const makePatterns = () => {
 
     const rn = random()
     if (rn > 0.66) temp.rectPattern(0, 0, xSpan, ySpan, xSpan, 0, 0, 0)
-    else if (rn > 0.33)
-      {temp.arcPattern(
+    else if (rn > 0.33) {
+      temp.arcPattern(
         xSpan / 2,
         ySpan / 2,
         xSpan * 2,
         ySpan * 2,
         PI,
         (TAU / 4) * 3
-      )}
-    else
-      {temp.trianglePattern(
+      )
+    } else {
+      temp.trianglePattern(
         xSpan / 2,
         ySpan / 2,
         -xSpan / 2,
         ySpan / 2,
         xSpan / 2,
         -ySpan / 2
-      )}
+      )
+    }
 
     const img = createImage(2000, 2000)
     img.copy(temp, 0, 0, 500, 500, 0, 0, img.width, img.height)
@@ -543,19 +522,19 @@ const mouseWithinCanvas = () => {
 }
 
 // this is START of press
-sketch.mousePressed = () => {
-  // TODO: oh is now completely different
-  if (activity === activityModes.GALLERY && mouseWithinCanvas()) {
-    const tileSize = Math.floor(displayCanvas.width / config.galleryTileWidth)
-    const clickedIndex =
-      floor(mouseX / tileSize) +
-      floor(mouseY / tileSize) * config.galleryTileWidth +
-      config.galleryOffset
-    if (clickedIndex < cimages.outlineds.length) {
-      config.selectedIndex = clickedIndex
-    }
-  }
-}
+// sketch.mousePressed = () => {
+//   // TODO: oh is now completely different
+//   if (activity === activityModes.GALLERY && mouseWithinCanvas()) {
+//     const tileSize = Math.floor(displayCanvas.width / config.galleryTileWidth)
+//     const clickedIndex =
+//       floor(mouseX / tileSize) +
+//       floor(mouseY / tileSize) * config.galleryTileWidth +
+//       config.galleryOffset
+//     if (clickedIndex < cimages.outlineds.length) {
+//       config.selectedIndex = clickedIndex
+//     }
+//   }
+// }
 
 sketch.keyPressed = () => {
   if (activity === activityModes.GALLERY) {
@@ -594,8 +573,8 @@ sketch.keyPressed = () => {
           ? origIndex
           : config.selectedIndex + config.galleryOffset >=
             cimages.outlineds.length
-            ? origIndex
-            : config.selectedIndex
+          ? origIndex
+          : config.selectedIndex
     }
   }
 }
@@ -699,12 +678,13 @@ const getImageVectorKeys = zip => {
 
 // Handle file uploads
 async function handleFile (file) {
-  if (file.type === 'image' || file.type === 'image/png') {
+  if (file.type.startsWith('image')) {
     loadImage(URL.createObjectURL(file), img => {
-      const croppedImg = squareCrop(img)
-      croppedImg.resize(target.width, 0)
-      cimages.addImage(new CollageImage(img, croppedImg))
-      const source = croppedImg.canvas.toDataURL()
+      const cropped = squareCrop(img)
+      cropped.resize(target.width, 0)
+      cimages.addImage(new CroppableImage({ img, cropped }))
+      const source = cropped.canvas.toDataURL()
+      // TODO
       addImageToGallery(source)
     })
   } else if (file.type === 'application/zip' || file.subtype === 'zip') {
@@ -718,7 +698,8 @@ async function handleFile (file) {
     loadImage(objectURL, img => {
       cimages.addImage(new OutlineableImage({ img, vectors }))
       const source = img.canvas.toDataURL()
-      addImageToGallery(source)
+      // TODO
+      addImageToGallery(source, true)
     })
   } else {
     console.log('Not an image file or image-outline bundle!')
@@ -735,7 +716,7 @@ const duplicateRecrop = () => {
   cimages.addImage(cloned)
   config.cropStrategy = tempCropMode
   const source = cloned.cropped.canvas.toDataURL()
-    addImageToGallery(source)
+  addImageToGallery(source)
 }
 
 // Clear upload files
@@ -759,6 +740,71 @@ function download () {
   console.log('downloaded ' + name)
 }
 
+function addImageToGallery (source, isOutlined = false) {
+  const galleryImage = document.createElement('img')
+  galleryImage.src = source
+  galleryImage.classList.add('gallery-image')
+
+  // Store a reference to the original image object
+  galleryImage.dataset.imageRef = '' // JSON.stringify(image);
+
+  if (isOutlined) {
+    galleryImage.classList.add('outlined')
+  }
+
+  galleryImage.addEventListener('click', () => {
+    const imageRef = JSON.parse(galleryImage.dataset.imageRef)
+    // You can now access the original image object using `imageRef`
+    // For example, you can delete it from the source list
+    const isOutlined = this.classList.contains('outlined')
+    const index = isOutlined
+      ? cimages.images.indexOf(imageRef)
+      : cimages.outlineds.indexOf(imageRef)
+    console.log(index)
+    // TODO: selected image. ugh
+  })
+
+  imagesContainer.appendChild(galleryImage)
+}
+
+function addImageToGallery_orig (source) {
+  // TODO: also need to pass in imageType (list) and index ???
+  // ugh, indexes will change on deletion, so that doesn't work
+  // have to assume displayed in order, and delete that way?
+  // sure. but still need to know "type" (outlineds or normal)
+  const img = document.createElement('img')
+  img.src = source
+  img.addEventListener('click', () => {
+    selectImage(source)
+  })
+  imagesContainer.appendChild(img)
+}
+
+function removeImageFromGallery () {
+  // imagesContainer.remove
+}
+
+function selectImage (e) {
+  const selectedImage = e
+  // TODO: ugh
+  // changeImage = true
+  // img = loadImage(selectedImage)
+  // TODO: other stuff, set selected
+  // overlay.classList.toggle('active')
+}
+
+const buildGallery = cimgs => {
+  // how about one list, with everything intermingled....
+  for (let i = 0; i < cimgs.croppeds.length; i++) {
+    const source = cimgs.croppeds[i].cropped.canvas.toDataURL()
+    addImageToGallery(source, false)
+  }
+  for (let i = 0; i < cimgs.outlineds.length; i++) {
+    const source = cimgs.outlineds[i].orig.canvas.toDataURL()
+    addImageToGallery(source, true)
+  }
+}
+
 const hideGallery = () => {
   overlay.classList.remove('active')
 }
@@ -769,6 +815,7 @@ const toggleGallery = () => {
   } else {
     activity = activityModes.GALLERY
     config.currentMode = mode0
+    pane.hidden = true
   }
   overlay.classList.toggle('active')
   return
@@ -819,10 +866,11 @@ function mode0 () {
   sounds[0].play()
 }
 
-const modeInit = (mode) => {
+const modeInit = mode => {
   activity = activityModes.DRAWING
   config.currentMode = mode
   hideGallery()
+  pane.hidden = false
 }
 
 // Full-length strips
@@ -1176,10 +1224,10 @@ function mode5 () {
     const cf = coinflip()
     img = cf
       ? random(
-        config.addin === addins.Solid || !config.patternsReady
-          ? solids
-          : patternImages
-      )
+          config.addin === addins.Solid || !config.patternsReady
+            ? solids
+            : patternImages
+        )
       : cimages.random.cropped
 
     const stripW = random(config.stripMin, config.stripMax)
