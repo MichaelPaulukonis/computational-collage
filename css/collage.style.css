@@ -33,6 +33,27 @@ aside {
   max-width: 200px;
   padding: 1px;
   cursor: pointer;
+  position: relative;
+}
+
+#images div.gallery-image {
+  max-width: 200px;
+  height: 200px;
+  padding: 1px;
+  cursor: pointer;
+  position: relative;
+  background-size: cover; /* Ensure the image covers the entire square */
+  background-repeat: no-repeat; /* Prevent the image from repeating */
+  background-position: center; 
+}
+
+#images div.selected > div {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 10px solid rgba(0, 255, 0, 0.6);
 }
 
 aside.active {

@@ -37,17 +37,12 @@ export class OutlineableImage extends CollageImage {
     this.scaling = 1
   }
 
-  // get cropped () {
-  //   return this.orig
-  // }
-
   get clone () {
     const tImage = this.orig.get()
     const tVectors = JSON.parse(JSON.stringify(this.vectors))
     return new OutlineableImage({ img: tImage, vectors: tVectors})
   }
 
-  // ooooh, vertexes need scaling applied...
   draw ({ x, y, scaling, target, config }) {
     if (config.outline) {
       target.strokeWeight(config.outlineWeight) // something different than other type

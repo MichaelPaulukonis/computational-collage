@@ -21,7 +21,7 @@ let solids = []
 const userUploads = [] // buffer array for storing user uploads
 let isHorizontal = true // Initial boolean value of pattern direction
 let isBlended = false // Initial bool value of the image blending status
-let img // single image buffer
+// let img // single image buffer
 let displayCanvas // canvas
 
 const COLS = createCols('https://coolors.co/bcf8ec-aed9e0-9fa0c3-8b687f-7b435b')
@@ -684,8 +684,8 @@ async function handleFile (file) {
       cropped.resize(target.width, 0)
       cimages.addImage(new CroppableImage({ img, cropped }))
       const source = cropped.canvas.toDataURL()
-      // TODO
-      addImageToGallery(source)
+      const index = cimages.images.length - 1
+      addImageToGallery(source, false, index)
     })
   } else if (file.type === 'application/zip' || file.subtype === 'zip') {
     const zip = await JSZip.loadAsync(file)
@@ -698,8 +698,8 @@ async function handleFile (file) {
     loadImage(objectURL, img => {
       cimages.addImage(new OutlineableImage({ img, vectors }))
       const source = img.canvas.toDataURL()
-      // TODO
-      addImageToGallery(source, true)
+      const index = cimages.images.length - 1
+      addImageToGallery(source, true, index)
     })
   } else {
     console.log('Not an image file or image-outline bundle!')
@@ -716,6 +716,7 @@ const duplicateRecrop = () => {
   cimages.addImage(cloned)
   config.cropStrategy = tempCropMode
   const source = cloned.cropped.canvas.toDataURL()
+  // TODO: all of this needs to be redone, including the 2 new params to pass in
   addImageToGallery(source)
 }
 
@@ -733,51 +734,46 @@ const saver = (canvas, name) => {
   canvas.toBlob(blob => saveAs(blob, name))
 }
 
-function download () {
+function download (ctx = target) {
   // actionSound.play();
   const name = namer() + '.png'
-  saver(target.drawingContext.canvas, name)
+  saver(ctx.drawingContext.canvas, name)
   console.log('downloaded ' + name)
 }
 
-function addImageToGallery (source, isOutlined = false) {
-  const galleryImage = document.createElement('img')
-  galleryImage.src = source
+function addImageToGallery (source, isOutlined = false, index) {
+  const galleryImage = document.createElement('div')
+  galleryImage.style.background = `url('${source}') 200px 200px` // 25% 25%`
+  galleryImage.style['background-size'] = 'cover' /* Ensure the image covers the entire square */
+  galleryImage.style['background-repeat'] = 'no-repeat' /* Prevent the image from repeating */
+  galleryImage.style['background-position'] = 'center' 
+
+  // background: transparent url(https://i.sstatic.net/RL5UH.png) 50% 50% no-repeat;
   galleryImage.classList.add('gallery-image')
+  galleryImage.dataset.index = index 
 
-  // Store a reference to the original image object
-  galleryImage.dataset.imageRef = '' // JSON.stringify(image);
+  // via https://stackoverflow.com/a/8452798/41153
+  galleryImage.appendChild(document.createElement('div'))
 
+  // mmm..... might not need this anymore?
   if (isOutlined) {
     galleryImage.classList.add('outlined')
   }
 
-  galleryImage.addEventListener('click', () => {
-    const imageRef = JSON.parse(galleryImage.dataset.imageRef)
-    // You can now access the original image object using `imageRef`
-    // For example, you can delete it from the source list
-    const isOutlined = this.classList.contains('outlined')
-    const index = isOutlined
-      ? cimages.images.indexOf(imageRef)
-      : cimages.outlineds.indexOf(imageRef)
-    console.log(index)
-    // TODO: selected image. ugh
+  galleryImage.addEventListener('click', (evt) => {
+    const img = evt.currentTarget
+    img.classList.toggle('selected')
+
+    // TODO: now we can select multiple items
+    // for whatever reason
+
+    // const index = parseInt(img.dataset.index, 10)
+    // const isOutlined = img.classList.contains('outlined')
+    // console.log(index, isOutlined)
+    // config.selectedIndex = index
   })
 
   imagesContainer.appendChild(galleryImage)
-}
-
-function addImageToGallery_orig (source) {
-  // TODO: also need to pass in imageType (list) and index ???
-  // ugh, indexes will change on deletion, so that doesn't work
-  // have to assume displayed in order, and delete that way?
-  // sure. but still need to know "type" (outlineds or normal)
-  const img = document.createElement('img')
-  img.src = source
-  img.addEventListener('click', () => {
-    selectImage(source)
-  })
-  imagesContainer.appendChild(img)
 }
 
 function removeImageFromGallery () {
@@ -795,13 +791,15 @@ function selectImage (e) {
 
 const buildGallery = cimgs => {
   // how about one list, with everything intermingled....
-  for (let i = 0; i < cimgs.croppeds.length; i++) {
-    const source = cimgs.croppeds[i].cropped.canvas.toDataURL()
-    addImageToGallery(source, false)
-  }
-  for (let i = 0; i < cimgs.outlineds.length; i++) {
-    const source = cimgs.outlineds[i].orig.canvas.toDataURL()
-    addImageToGallery(source, true)
+  for (let i = 0; i < cimgs.images.length; i++) {
+    const img = cimgs.images[i]
+    if (img instanceof OutlineableImage) {
+      const source = img.orig.canvas.toDataURL()
+      addImageToGallery(source, true, i)
+    } else {
+      const source = img.cropped.canvas.toDataURL()
+      addImageToGallery(source, false, i)
+    }
   }
 }
 
@@ -878,7 +876,7 @@ function mode1 () {
   modeInit(mode1)
   if (isHorizontal) {
     for (let y = 0; y < target.height; y += 10) {
-      img = cimages.random.cropped
+      const img = cimages.random.cropped
 
       // pick a y point to get the strip
       const stripYPosition = int(random(0, img.height - 10))
@@ -892,7 +890,7 @@ function mode1 () {
   } else {
     // Toggle to vertical
     for (let x = 0; x < target.width; x += 10) {
-      cimages.random.cropped
+      const img = cimages.random.cropped
 
       // pick a x point to get the strip
       const stripXPosition = int(random(0, img.width - 10))
@@ -911,8 +909,10 @@ function mode1 () {
 // Collaging random chunks
 function mode2 () {
   modeInit(mode2)
+  target.clear()
 
-  target.image(cimages.random.cropped, 0, 0)
+  // target.image(cimages.random.cropped, 0, 0)
+  
   if (config.outline) {
     // target.blendMode('source-over')
     target.strokeWeight(config.outlineWeight)
@@ -921,7 +921,7 @@ function mode2 () {
   }
 
   for (let i = 0; i < config.stripCount; i++) {
-    img = cimages.random.cropped
+    const img = cimages.random.cropped
     const stripW = random(config.stripMin, config.stripMax)
     const stripH = random(config.stripMin, config.stripMax)
     const stripX = random(stripW / -2, target.width)
@@ -951,7 +951,6 @@ function mode2 () {
   }
   target.strokeWeight(0)
 
-  target.filter(DILATE)
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play()
 }
@@ -1183,7 +1182,7 @@ function mode4 () {
   target.rect(0, 0, target.width, target.height)
   target.noStroke()
   for (let i = 0; i < 900; i++) {
-    img = cimages.random.cropped
+    const img = cimages.random.cropped
 
     const stripX = random(target.width)
     const stripY = random(target.height)
@@ -1222,7 +1221,7 @@ function mode5 () {
   // but still, not as many showing up as expected
   for (let i = 0; i < config.stripCount; i++) {
     const cf = coinflip()
-    img = cf
+    const img = cf
       ? random(
           config.addin === addins.Solid || !config.patternsReady
             ? solids
@@ -1307,30 +1306,26 @@ function mode6 () {
   for (let gridY = 0; gridY < tileCountY; gridY++) {
     let x = 0
     while (x < target.width) {
-      const tileWidth = random(15, 40)
+      const tileWidth = random(15, 80)
       const y = gridY * tileHeight
-      img = cimages.random.cropped
+      const img = cimages.random.cropped
 
       // Base grid tile
       target.rect(x, y, tileWidth, tileHeight)
 
       if (random(0, 1) > 0.7) {
-        // TOO SLOW
         const c = img.get(x, gridY * tileHeight)
         target.fill(c)
         target.rect(
-          random(x - 10, x + 10),
-          random(y - 10, y + 10),
+          round(random(x - 10, x + 10)),
+          round(random(y - 10, y + 10)),
           tileWidth,
           tileHeight
         )
       } else {
         // Offset tile
-        // TOO SLOW
-        // this can be done dirctly in image, with source and dest params
-        // AND FASTER
         const strip = img.get(x, y, tileWidth, tileHeight)
-        target.image(strip, random(x - 10, x + 10), random(y - 10, y + 10))
+        target.image(strip, round(random(x - 10, x + 10)), round(random(y - 10, y + 10)))
       }
 
       x += tileWidth
@@ -1354,7 +1349,6 @@ function mode7 () {
     config.mondrianProb,
     random(2) < 1
   )
-  // target.filter(DILATE);
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play()
 }
@@ -1367,13 +1361,14 @@ function mode8 () {
   const backGrnd = cimages.random.cropped
 
   for (let j = 0; j < target.height; j += 5) {
+    // get color of pixel at point
     const c = backGrnd.get(target.width / 2, j)
     target.fill(c)
     target.rect(0, j, target.width, 5)
   }
 
   for (let i = 0; i < 200; i++) {
-    img = cimages.random.cropped
+    const img = cimages.random.cropped
 
     const stripX = random(target.width)
     const stripY = random(target.height)
@@ -1381,13 +1376,11 @@ function mode8 () {
     const stripH = random(50, 150)
 
     for (let j = 0; j < stripH; j++) {
-      // reading pixels directly is a looooot faster
       const c = img.get(stripX, stripY + j)
       target.fill(c)
       target.rect(stripX, stripY + j, stripW, 1)
     }
   }
-  target.filter(DILATE)
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
   random(sounds).play()
 }
@@ -1404,7 +1397,7 @@ function mode9 () {
   target.blendMode(LIGHTEST)
 
   for (let i = 0; i < 450; i++) {
-    img = cimages.random.cropped
+    const img = cimages.random.cropped
 
     const X = random(target.width)
     const Y = random(target.height)
@@ -1496,7 +1489,7 @@ function mondrianInner (w, h, x, y, prob, vertical) {
     }
   } else {
     // Base case: Draw rectangle
-    img = cimages.random.cropped
+    const img = cimages.random.cropped
     const tileHeight = max(h, 0)
     const tileWidth = max(w, 0)
     if (config.outline) {
