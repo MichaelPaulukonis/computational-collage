@@ -21,7 +21,6 @@ let solids = []
 const userUploads = [] // buffer array for storing user uploads
 let isHorizontal = true // Initial boolean value of pattern direction
 let isBlended = false // Initial bool value of the image blending status
-// let img // single image buffer
 let displayCanvas // canvas
 
 const COLS = createCols('https://coolors.co/bcf8ec-aed9e0-9fa0c3-8b687f-7b435b')
@@ -592,9 +591,8 @@ sketch.keyTyped = () => {
     modes[key][0]()
   } else if (activity === activityModes.GALLERY) {
     if (key === 'x') {
-      // TODO: more complicated
-      deleteImage(config.selectedIndex)
-      // toggleGallery()
+      const sels = getSelectedImages()
+      deleteImage(sels)
     } else if (key === 'c') {
       clearUploads()
       namer = filenamer(datestring())
@@ -741,39 +739,32 @@ function download (ctx = target) {
   console.log('downloaded ' + name)
 }
 
+function getSelectedImages () {
+  const selectedItems = document.querySelectorAll('.gallery-image.selected')
+  return [...selectedItems]
+  const idxs = [...selectedItems].map(element => Array.prototype.indexOf.call(element.parentNode.children, element))
+  return idxs
+}
+
 function addImageToGallery (source, isOutlined = false, index) {
-  const galleryImage = document.createElement('div')
-  galleryImage.style.background = `url('${source}') 200px 200px` // 25% 25%`
-  galleryImage.style['background-size'] = 'cover' /* Ensure the image covers the entire square */
-  galleryImage.style['background-repeat'] = 'no-repeat' /* Prevent the image from repeating */
-  galleryImage.style['background-position'] = 'center' 
+  const galleryItem = document.createElement('div')
+  galleryItem.style.background = `url('${source}') 200px 200px` // 25% 25%`
+  galleryItem.style['background-size'] = 'cover' /* Ensure the image covers the entire square */
+  galleryItem.style['background-repeat'] = 'no-repeat' /* Prevent the image from repeating */
+  galleryItem.style['background-position'] = 'center' 
 
   // background: transparent url(https://i.sstatic.net/RL5UH.png) 50% 50% no-repeat;
-  galleryImage.classList.add('gallery-image')
-  galleryImage.dataset.index = index 
+  galleryItem.classList.add('gallery-image')
 
   // via https://stackoverflow.com/a/8452798/41153
-  galleryImage.appendChild(document.createElement('div'))
+  galleryItem.appendChild(document.createElement('div'))
 
-  // mmm..... might not need this anymore?
-  if (isOutlined) {
-    galleryImage.classList.add('outlined')
-  }
-
-  galleryImage.addEventListener('click', (evt) => {
-    const img = evt.currentTarget
-    img.classList.toggle('selected')
-
-    // TODO: now we can select multiple items
-    // for whatever reason
-
-    // const index = parseInt(img.dataset.index, 10)
-    // const isOutlined = img.classList.contains('outlined')
-    // console.log(index, isOutlined)
-    // config.selectedIndex = index
+  galleryItem.addEventListener('click', (evt) => {
+    const item = evt.currentTarget
+    item.classList.toggle('selected')
   })
 
-  imagesContainer.appendChild(galleryImage)
+  imagesContainer.appendChild(galleryItem)
 }
 
 function removeImageFromGallery () {
@@ -850,12 +841,13 @@ const toggleGallery = () => {
   }
 }
 
-const deleteImage = index => {
-  cimages.outlineds.splice(index, 1)
-  config.selectedIndex =
-    config.selectedIndex < cimages.outlineds.length
-      ? config.selectedIndex
-      : config.selectedIndex - 1
+const deleteImage = (selectedItems) => {
+  for (let i = 0; i < selectedItems.length; i++) {
+    const element = selectedItems[i]
+    const index = Array.prototype.indexOf.call(element.parentNode.children, element)
+    cimages.images.splice(index, 1)
+    element.remove()
+  }
 }
 
 function mode0 () {
