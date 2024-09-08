@@ -25,7 +25,7 @@ export class CroppableImage extends CollageImage {
   get clone () {
     const tOrig = this.orig.get()
     const tCrop = this.cropd.get()
-    return new CroppableImage(tOrig, tCrop)
+    return new CroppableImage({ img: tOrig, cropped: tCrop })
   }
 }
 

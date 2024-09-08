@@ -156,6 +156,7 @@ sketch.preload = () => {
 }
 
 sketch.setup = () => {
+  noLoop()
   displayCanvas = createCanvas(500, 500)
   displayCanvas.drop(handleFile)
 
@@ -506,78 +507,6 @@ function setupButtons () {
   resetBtn.hide()
 }
 
-sketch.draw = () => {
-  if (activity === activityModes.GALLERY) {
-  }
-}
-
-const mouseWithinCanvas = () => {
-  return (
-    mouseX >= 0 &&
-    mouseX <= displayCanvas.width &&
-    mouseY >= 0 &&
-    mouseY <= displayCanvas.height
-  )
-}
-
-// this is START of press
-// sketch.mousePressed = () => {
-//   // TODO: oh is now completely different
-//   if (activity === activityModes.GALLERY && mouseWithinCanvas()) {
-//     const tileSize = Math.floor(displayCanvas.width / config.galleryTileWidth)
-//     const clickedIndex =
-//       floor(mouseX / tileSize) +
-//       floor(mouseY / tileSize) * config.galleryTileWidth +
-//       config.galleryOffset
-//     if (clickedIndex < cimages.outlineds.length) {
-//       config.selectedIndex = clickedIndex
-//     }
-//   }
-// }
-
-sketch.keyPressed = () => {
-  if (activity === activityModes.GALLERY) {
-    // off-screen movement is better guarded against, now
-    // it would be NICE if simple up/down/left/right
-    // also modified offsets, if required
-    // as it is now, things get .... weird, or do nothing.
-    if (keyIsDown(SHIFT)) {
-      const origOffset = config.galleryOffset
-      if (keyCode === UP_ARROW) {
-        config.galleryOffset -= config.galleryTileWidth
-        config.galleryOffset =
-          config.galleryOffset < 0 ? origOffset : config.galleryOffset
-      } else if (keyCode === DOWN_ARROW) {
-        config.galleryOffset += config.galleryTileWidth
-        config.galleryOffset =
-          config.galleryOffset >
-          cimages.outlineds.length - config.galleryTileWidth
-            ? origOffset
-            : config.galleryOffset
-      }
-    } else {
-      // so does clicking on image, too
-      const origIndex = config.selectedIndex
-      if (keyCode === RIGHT_ARROW) {
-        config.selectedIndex += 1
-      } else if (keyCode === LEFT_ARROW) {
-        config.selectedIndex -= 1
-      } else if (keyCode === UP_ARROW) {
-        config.selectedIndex -= config.galleryTileWidth
-      } else if (keyCode === DOWN_ARROW) {
-        config.selectedIndex += config.galleryTileWidth
-      }
-      config.selectedIndex =
-        config.selectedIndex < 0
-          ? origIndex
-          : config.selectedIndex + config.galleryOffset >=
-            cimages.outlineds.length
-          ? origIndex
-          : config.selectedIndex
-    }
-  }
-}
-
 sketch.keyTyped = () => {
   // perform action invariant of activity
   const shifted = keyIsDown(SHIFT)
@@ -596,6 +525,9 @@ sketch.keyTyped = () => {
     } else if (key === 'c') {
       clearUploads()
       namer = filenamer(datestring())
+    } else if (key === 'd') {
+      const sels = getSelectedImages()
+      if (sels.length > 0) duplicateRecrop(sels)
     } else if (key === 'g') {
       toggleGallery()
     }
@@ -608,8 +540,6 @@ sketch.keyTyped = () => {
       blendLightest()
     } else if (key === 'r') {
       resetBlend()
-    } else if (key === 'd') {
-      duplicateRecrop()
     } else if (key === 'g') {
       toggleGallery()
     } else if (key === 'u') {
@@ -705,17 +635,25 @@ async function handleFile (file) {
 }
 
 // TODO: get to work w/ OutlineableImage
-const duplicateRecrop = () => {
-  const tempCropMode = config.cropStrategy
-  config.cropStrategy = 'RANDOM'
-  const cloned = cimages.images[cimages.images.length - 1].clone
-  cloned.cropped = squareCrop(cloned.original)
-  cloned.cropped.resize(target.width, 0)
-  cimages.addImage(cloned)
-  config.cropStrategy = tempCropMode
-  const source = cloned.cropped.canvas.toDataURL()
-  // TODO: all of this needs to be redone, including the 2 new params to pass in
-  addImageToGallery(source)
+const duplicateRecrop = items => {
+  const imgIndexes = items.map(getGalleryItemIndex)
+  let source = null
+  imgIndexes.forEach(index => {
+    const imgObj = cimages.images[index]
+    if (imgObj instanceof OutlineableImage) {
+      // TODO:
+    } else {
+      const tempCropMode = config.cropStrategy
+      config.cropStrategy = 'RANDOM'
+      const cloned = imgObj.clone
+      cloned.cropped = squareCrop(cloned.original)
+      cloned.cropped.resize(target.width, 0)
+      cimages.addImage(cloned)
+      config.cropStrategy = tempCropMode
+      source = cloned.cropped.canvas.toDataURL()
+    }
+    addImageToGallery(source)
+  })
 }
 
 // Clear upload files
@@ -739,12 +677,13 @@ function download (ctx = target) {
   console.log('downloaded ' + name)
 }
 
+// returns an array of DOM elements
 function getSelectedImages () {
   const selectedItems = document.querySelectorAll('.gallery-image.selected')
   return [...selectedItems]
 }
 
-function addImageToGallery (source, isOutlined = false, index) {
+function addImageToGallery (source) {
   const galleryItem = document.createElement('div')
   galleryItem.classList.add('gallery-image')
   galleryItem.style['background-image'] = `url('${source}')`
@@ -759,30 +698,14 @@ function addImageToGallery (source, isOutlined = false, index) {
   imagesContainer.appendChild(galleryItem)
 }
 
-function removeImageFromGallery () {
-  // imagesContainer.remove
-}
-
-function selectImage (e) {
-  const selectedImage = e
-  // TODO: ugh
-  // changeImage = true
-  // img = loadImage(selectedImage)
-  // TODO: other stuff, set selected
-  // overlay.classList.toggle('active')
-}
-
 const buildGallery = cimgs => {
-  // how about one list, with everything intermingled....
   for (let i = 0; i < cimgs.images.length; i++) {
     const img = cimgs.images[i]
-    if (img instanceof OutlineableImage) {
-      const source = img.orig.canvas.toDataURL()
-      addImageToGallery(source, true, i)
-    } else {
-      const source = img.cropped.canvas.toDataURL()
-      addImageToGallery(source, false, i)
-    }
+    const source =
+      img instanceof OutlineableImage
+        ? img.orig.canvas.toDataURL()
+        : img.cropped.canvas.toDataURL()
+    addImageToGallery(source)
   }
 }
 
@@ -799,51 +722,16 @@ const toggleGallery = () => {
     pane.hidden = true
   }
   overlay.classList.toggle('active')
-  return
-  // if image count > 9 but less than 17 (or 25?) increase to 4 or 5
-  // or just jump straight to "scrolling" the images?
-  let i = 0
-  // let imagesOffset = 0
-  for (let gridY = 0; gridY < tileCountY; gridY++) {
-    for (let gridX = 0; gridX < tileCountX; gridX++) {
-      const index = i + config.galleryOffset
-      if (index >= cimages.outlineds.length) {
-        fill(255)
-        text(
-          'Drop to upload',
-          gridX * tileWidth + tileWidth / 2,
-          gridY * tileHeight + tileHeight / 2
-        )
-      } else {
-        // let's do the outlineables FIRST
-        const tmp = cimages.outlineds[i + config.galleryOffset].image
-        image(tmp, gridX * tileWidth, gridY * tileHeight, tileWidth, tileHeight)
-
-        if (config.selectedIndex === index) {
-          noFill()
-          stroke('green')
-          strokeWeight(4)
-          rect(gridX * tileWidth, gridY * tileHeight, tileWidth, tileWidth)
-          displayCanvas.fill('black')
-          noStroke()
-        }
-      }
-      i++
-    }
-  }
 }
 
-const deleteImage = selectedItems => {
-  for (let i = 0; i < selectedItems.length; i++) {
-    const element = selectedItems[i]
-    const index = Array.prototype.indexOf.call(
-      element.parentNode.children,
-      element
-    )
-    cimages.images.splice(index, 1)
+const getGalleryItemIndex = elem =>
+  Array.prototype.indexOf.call(elem.parentNode.children, elem)
+
+const deleteImage = selectedItems =>
+  selectedItems.forEach(element => {
+    cimages.images.splice(getGalleryItemIndex(element), 1)
     element.remove()
-  }
-}
+  })
 
 function mode0 () {
   toggleGallery()
