@@ -742,27 +742,19 @@ function download (ctx = target) {
 function getSelectedImages () {
   const selectedItems = document.querySelectorAll('.gallery-image.selected')
   return [...selectedItems]
-  const idxs = [...selectedItems].map(element => Array.prototype.indexOf.call(element.parentNode.children, element))
-  return idxs
 }
 
 function addImageToGallery (source, isOutlined = false, index) {
   const galleryItem = document.createElement('div')
-  galleryItem.style.background = `url('${source}') 200px 200px` // 25% 25%`
-  galleryItem.style['background-size'] = 'cover' /* Ensure the image covers the entire square */
-  galleryItem.style['background-repeat'] = 'no-repeat' /* Prevent the image from repeating */
-  galleryItem.style['background-position'] = 'center' 
-
-  // background: transparent url(https://i.sstatic.net/RL5UH.png) 50% 50% no-repeat;
   galleryItem.classList.add('gallery-image')
+  galleryItem.style['background-image'] = `url('${source}')`
 
   // via https://stackoverflow.com/a/8452798/41153
   galleryItem.appendChild(document.createElement('div'))
 
-  galleryItem.addEventListener('click', (evt) => {
-    const item = evt.currentTarget
-    item.classList.toggle('selected')
-  })
+  galleryItem.addEventListener('click', evt =>
+    evt.currentTarget.classList.toggle('selected')
+  )
 
   imagesContainer.appendChild(galleryItem)
 }
@@ -841,10 +833,13 @@ const toggleGallery = () => {
   }
 }
 
-const deleteImage = (selectedItems) => {
+const deleteImage = selectedItems => {
   for (let i = 0; i < selectedItems.length; i++) {
     const element = selectedItems[i]
-    const index = Array.prototype.indexOf.call(element.parentNode.children, element)
+    const index = Array.prototype.indexOf.call(
+      element.parentNode.children,
+      element
+    )
     cimages.images.splice(index, 1)
     element.remove()
   }
@@ -903,10 +898,9 @@ function mode2 () {
   modeInit(mode2)
   target.clear()
 
-  // target.image(cimages.random.cropped, 0, 0)
-  
+  target.image(cimages.random.cropped, 0, 0)
+
   if (config.outline) {
-    // target.blendMode('source-over')
     target.strokeWeight(config.outlineWeight)
     target.stroke(config.outlineColor)
     target.noFill()
@@ -1066,6 +1060,12 @@ layerGen.genLayer2 = imgs => {
 // mode3 randomizes, so not doing mode3 again does not re-randomize. boom!
 // it would be nice to wiggle, shuffle, change sizes, do a rotation of each level for while....
 function mode3 () {
+  if (cimages.outlineds.length === 0) {
+    console.log('no outlined images')
+    // TODO: rework this to work with BOTH TYPES of images, again!. woo.
+    return
+  }
+
   modeInit(mode3)
 
   circularCollections = splitArrayByRatio(
@@ -1317,7 +1317,11 @@ function mode6 () {
       } else {
         // Offset tile
         const strip = img.get(x, y, tileWidth, tileHeight)
-        target.image(strip, round(random(x - 10, x + 10)), round(random(y - 10, y + 10)))
+        target.image(
+          strip,
+          round(random(x - 10, x + 10)),
+          round(random(y - 10, y + 10))
+        )
       }
 
       x += tileWidth
