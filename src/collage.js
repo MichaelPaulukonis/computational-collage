@@ -118,7 +118,8 @@ const config = {
   layer2_scaleEnd: 3.0,
   layer2_rangeA: 15,
   layer2_rangeL: 1000,
-  layer2_length: 1000
+  layer2_length: 1000,
+  source: 'outlined'
 }
 
 let uploadBtn, downloadBtn, clearBtn, blendBtn, resetBtn
@@ -243,6 +244,19 @@ sketch.setup = () => {
       .on('click', () => m[0]())
   )
 
+  mode3Tab
+    .addBlade({
+      view: 'list',
+      label: 'sources',
+      options: ['all', 'cropped', 'outlined'].map(strat => ({
+        text: strat,
+        value: strat
+      })),
+      value: 'outlined'
+    })
+    .on('change', ({ value }) => {
+      config.source = value
+    })
   mode3Tab.addBinding(config.layer2Config, 'angle', {
     min: -180,
     max: 180,
@@ -634,14 +648,15 @@ async function handleFile (file) {
   }
 }
 
-// TODO: get to work w/ OutlineableImage
 const duplicateRecrop = items => {
   const imgIndexes = items.map(getGalleryItemIndex)
   let source = null
   imgIndexes.forEach(index => {
     const imgObj = cimages.images[index]
     if (imgObj instanceof OutlineableImage) {
-      // TODO:
+      const cloned = imgObj.clone
+      cimages.addImage(cloned)
+      source = cloned.orig.canvas.toDataURL()
     } else {
       const tempCropMode = config.cropStrategy
       config.cropStrategy = 'RANDOM'
@@ -927,7 +942,7 @@ layerGen.genLayer1 = imgs => {
       rotationEnd: PI / 6
     })
 }
-// TODO: expoe these parameters in GUI so I can understand how they work!
+
 layerGen.genLayer2 = imgs => {
   return () =>
     generateCollageItems({
@@ -945,19 +960,28 @@ layerGen.genLayer2 = imgs => {
 }
 
 // shift-1,2,3 to redraw (& randomize?) that layer
-// mode3 randomizes, so not doing mode3 again does not re-randomize. boom!
-// it would be nice to wiggle, shuffle, change sizes, do a rotation of each level for while....
 function mode3 () {
-  if (cimages.outlineds.length === 0) {
-    console.log('no outlined images')
-    // TODO: rework this to work with BOTH TYPES of images, again!. woo.
+  let sourceImages = []
+  switch (config.source) {
+    case 'cropped':
+      sourceImages = cimages.croppeds
+      break
+    case 'outlined':
+      sourceImages = cimages.outlineds
+      break
+    case 'all':
+    default:
+      sourceImages = cimages.images
+  }
+  if (sourceImages.length === 0) {
+    console.log(`no '${config.source}' images`)
     return
   }
 
   modeInit(mode3)
 
   circularCollections = splitArrayByRatio(
-    shuffleArray(cimages.outlineds),
+    shuffleArray(sourceImages),
     [11, 5, 22]
   )
 
@@ -1026,7 +1050,7 @@ function OutlineableCollageItem (outlineableImg) {
   this.l = 0
   this.rotation = 0
   this.scaling = 1
-  this.image = outlineableImg.image
+  this.image = outlineableImg.original
   this.vectors = outlineableImg.vectors
   this.oi = outlineableImg
 }
@@ -1042,7 +1066,6 @@ function drawCollageitems (layerItems) {
 
   for (let i = 0; i < layerItems.length; i++) {
     const item = layerItems[i]
-    const img = item.image
     target.push()
     target.translate(
       target.width / 2 + cos(item.angle) * item.l,

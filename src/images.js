@@ -40,7 +40,7 @@ export class OutlineableImage extends CollageImage {
   get clone () {
     const tImage = this.orig.get()
     const tVectors = JSON.parse(JSON.stringify(this.vectors))
-    return new OutlineableImage({ img: tImage, vectors: tVectors})
+    return new OutlineableImage({ img: tImage, vectors: tVectors })
   }
 
   draw ({ x, y, scaling, target, config }) {
