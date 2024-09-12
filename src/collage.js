@@ -301,7 +301,7 @@ sketch.setup = () => {
   for (let i = 0; i < images.length; i++) {
     const cropped = squareCrop(images[i])
     cropped.resize(target.width, 0)
-    cimages.addImage(new CroppableImage({ img: images[i], cropped }))
+    cimages.add(new CroppableImage({ img: images[i], cropped }))
   }
 
   background(0)
@@ -624,10 +624,10 @@ async function handleFile (file) {
     loadImage(URL.createObjectURL(file), img => {
       const cropped = squareCrop(img)
       cropped.resize(target.width, 0)
-      cimages.addImage(new CroppableImage({ img, cropped }))
+      const ci = new CroppableImage({ img, cropped })
+      cimages.add(ci)
       const source = cropped.canvas.toDataURL()
-      const index = cimages.images.length - 1
-      addImageToGallery(source, false, index)
+      addImageToGallery(source, ci.uuid)
     })
   } else if (file.type === 'application/zip' || file.subtype === 'zip') {
     const zip = await JSZip.loadAsync(file)
@@ -638,10 +638,10 @@ async function handleFile (file) {
     const data = await zip.file(imageName).async('blob')
     const objectURL = URL.createObjectURL(data)
     loadImage(objectURL, img => {
-      cimages.addImage(new OutlineableImage({ img, vectors }))
+      const oi = new OutlineableImage({ img, vectors })
+      cimages.add(oi)
       const source = img.canvas.toDataURL()
-      const index = cimages.images.length - 1
-      addImageToGallery(source, true, index)
+      addImageToGallery(source, oi.uuid)
     })
   } else {
     console.log('Not an image file or image-outline bundle!')
@@ -655,7 +655,7 @@ const duplicateRecrop = items => {
     const imgObj = cimages.images[index]
     if (imgObj instanceof OutlineableImage) {
       const cloned = imgObj.clone
-      cimages.addImage(cloned)
+      cimages.add(cloned)
       source = cloned.orig.canvas.toDataURL()
     } else {
       const tempCropMode = config.cropStrategy
@@ -663,7 +663,7 @@ const duplicateRecrop = items => {
       const cloned = imgObj.clone
       cloned.cropped = squareCrop(cloned.original)
       cloned.cropped.resize(target.width, 0)
-      cimages.addImage(cloned)
+      cimages.add(cloned)
       config.cropStrategy = tempCropMode
       source = cloned.cropped.canvas.toDataURL()
     }
@@ -698,11 +698,11 @@ function getSelectedImages () {
   return [...selectedItems]
 }
 
-function addImageToGallery (source) {
+function addImageToGallery (source, uuid) {
   const galleryItem = document.createElement('div')
   galleryItem.classList.add('gallery-image')
   galleryItem.style['background-image'] = `url('${source}')`
-
+  galleryItem.dataset.uuid = uuid
   // via https://stackoverflow.com/a/8452798/41153
   galleryItem.appendChild(document.createElement('div'))
 
@@ -720,7 +720,7 @@ const buildGallery = cimgs => {
       img instanceof OutlineableImage
         ? img.orig.canvas.toDataURL()
         : img.cropped.canvas.toDataURL()
-    addImageToGallery(source)
+    addImageToGallery(source, cimgs.images[i].uuid)
   }
 }
 
@@ -739,12 +739,9 @@ const toggleGallery = () => {
   overlay.classList.toggle('active')
 }
 
-const getGalleryItemIndex = elem =>
-  Array.prototype.indexOf.call(elem.parentNode.children, elem)
-
 const deleteImage = selectedItems =>
   selectedItems.forEach(element => {
-    cimages.images.splice(getGalleryItemIndex(element), 1)
+    cimages.remove(element.dataset.uuid)
     element.remove()
   })
 
@@ -995,7 +992,7 @@ function mode3 () {
 const drawMode3 = layers => {
   // I keep changing my mind on this
   target.background(255)
-  target.imageMode(CENTER)
+  // target.imageMode(CENTER)
   // drawing in reverse because.... layer 3 is the largest, always ???
   for (let i = layers.length - 1; i >= 0; i--) {
     drawCollageitems(layers[i])
@@ -1072,7 +1069,19 @@ function drawCollageitems (layerItems) {
       target.height / 2 + sin(item.angle) * item.l
     )
     target.rotate(item.rotation)
-    item.oi.draw({ x: 0, y: 0, scaling: item.scaling, target, config })
+    if (item.oi && item.oi.draw) {
+      target.imageMode(CORNER)
+      item.oi.draw({ x: 0, y: 0, scaling: item.scaling, target, config })
+    } else {
+      target.imageMode(CENTER)
+      target.image(
+        item.image,
+        0,
+        0,
+        item.image.width * item.scaling,
+        item.image.height * item.scaling
+      )
+    }
     target.pop()
   }
 }

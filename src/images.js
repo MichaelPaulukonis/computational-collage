@@ -1,6 +1,7 @@
 export class CollageImage {
   constructor ({ img = null }) {
     this.orig = img
+    this.uuid = crypto.randomUUID()
   }
 
   get original () {
@@ -43,6 +44,7 @@ export class OutlineableImage extends CollageImage {
     return new OutlineableImage({ img: tImage, vectors: tVectors })
   }
 
+  // TODO: something like this for non-outlineds?
   draw ({ x, y, scaling, target, config }) {
     if (config.outline) {
       target.strokeWeight(config.outlineWeight) // something different than other type
@@ -90,12 +92,11 @@ export class Images {
     return this.croppeds[Math.floor(Math.random() * this.croppeds.length)]
   }
 
-  addImage (imgobj) {
+  add (imgobj) {
     this.imgs.push(imgobj)
   }
 
-  // will this work???
-  removeImage (imgobj) {
-    this.imgs = this.imgs.filter(i => i !== imgobj)
+  remove (uuid) {
+    this.imgs = this.imgs.filter(i => i.uuid !== uuid)
   }
 }
