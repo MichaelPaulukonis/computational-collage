@@ -649,25 +649,25 @@ async function handleFile (file) {
 }
 
 const duplicateRecrop = items => {
-  const imgIndexes = items.map(getGalleryItemIndex)
   let source = null
-  imgIndexes.forEach(index => {
-    const imgObj = cimages.images[index]
+  let cloned = null
+  items.forEach(item => {
+    const imgObj = cimages.images.find(i => i.uuid === item.dataset.uuid)
     if (imgObj instanceof OutlineableImage) {
-      const cloned = imgObj.clone
+      cloned = imgObj.clone
       cimages.add(cloned)
       source = cloned.orig.canvas.toDataURL()
     } else {
       const tempCropMode = config.cropStrategy
       config.cropStrategy = 'RANDOM'
-      const cloned = imgObj.clone
+      cloned = imgObj.clone
       cloned.cropped = squareCrop(cloned.original)
       cloned.cropped.resize(target.width, 0)
       cimages.add(cloned)
       config.cropStrategy = tempCropMode
       source = cloned.cropped.canvas.toDataURL()
     }
-    addImageToGallery(source)
+    addImageToGallery(source, cloned.uuid)
   })
 }
 
