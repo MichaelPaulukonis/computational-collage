@@ -119,7 +119,7 @@ const config = {
   layer2_rangeA: 15,
   layer2_rangeL: 1000,
   layer2_length: 1000,
-  source: 'outlined'
+  source: 'all'
 }
 
 let uploadBtn, downloadBtn, clearBtn, blendBtn, resetBtn
@@ -252,7 +252,7 @@ sketch.setup = () => {
         text: strat,
         value: strat
       })),
-      value: 'outlined'
+      value: config.source
     })
     .on('change', ({ value }) => {
       config.source = value
@@ -997,16 +997,22 @@ const drawMode3 = layers => {
   for (let i = layers.length - 1; i >= 0; i--) {
     drawCollageitems(layers[i])
   }
+
+  // outline canvas
+  outlineCanvas()
+
+  target.imageMode(CORNER)
+  image(target, 0, 0, displayCanvas.width, displayCanvas.height)
+  random(sounds).play()
+}
+
+function outlineCanvas() {
   if (config.outline) {
     target.strokeWeight(config.outlineWeight)
     target.stroke('black')
     target.noFill()
     target.rect(0, 0, target.width, target.height)
   }
-
-  target.imageMode(CORNER)
-  image(target, 0, 0, displayCanvas.width, displayCanvas.height)
-  random(sounds).play()
 }
 
 function generateCollageItems ({
@@ -1074,12 +1080,18 @@ function drawCollageitems (layerItems) {
       item.oi.draw({ x: 0, y: 0, scaling: item.scaling, target, config })
     } else {
       target.imageMode(CENTER)
+      target.rect(
+        (-item.image.width * item.scaling * 0.2) / 2,
+        (-item.image.height * item.scaling * 0.2) / 2,
+        item.image.width * item.scaling * 0.2,
+        item.image.height * item.scaling * 0.2
+      )
       target.image(
         item.image,
         0,
         0,
-        item.image.width * item.scaling,
-        item.image.height * item.scaling
+        item.image.width * item.scaling * 0.2,
+        item.image.height * item.scaling * 0.2
       )
     }
     target.pop()
