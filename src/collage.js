@@ -55,8 +55,8 @@ const circularLayerConfig = (ang, rs, re, ss, se, ra, rl, l) => ({
   rotationEnd: re,
   scaleStart: ss,
   scaleEnd: se,
-  rangeA: ra,
-  rangeL: rl,
+  angleRange: ra,
+  lengthRange: rl,
   length: l
 })
 
@@ -94,7 +94,7 @@ const config = {
   galleryTileWidth: 3,
   galleryOffset: 0,
   stripeSize: 1,
-  outline: false,
+  outline: true,
   outlineColor: 'black',
   circle: false,
   outlineWeight: 100,
@@ -116,10 +116,10 @@ const config = {
   layer2_rotationEnd: 5,
   layer2_scaleStart: 0.3,
   layer2_scaleEnd: 3.0,
-  layer2_rangeA: 15,
-  layer2_rangeL: 1000,
+  layer2_angleRange: 15,
+  layer2_lengthRange: 1000,
   layer2_length: 1000,
-  source: 'all'
+  source: 'outlined'
 }
 
 let uploadBtn, downloadBtn, clearBtn, blendBtn, resetBtn
@@ -287,12 +287,12 @@ sketch.setup = () => {
     max: 2000,
     step: 10
   })
-  mode3Tab.addBinding(config.layer2Config, 'rangeA', {
+  mode3Tab.addBinding(config.layer2Config, 'angleRange', {
     min: 0,
     max: 30,
     step: 1
   })
-  mode3Tab.addBinding(config.layer2Config, 'rangeL', {
+  mode3Tab.addBinding(config.layer2Config, 'lengthRange', {
     min: 100,
     max: 2000,
     step: 10
@@ -540,8 +540,7 @@ sketch.keyTyped = () => {
       clearUploads()
       namer = filenamer(datestring())
     } else if (key === 'd') {
-      const sels = getSelectedImages()
-      if (sels.length > 0) duplicateRecrop(sels)
+      duplicateRecrop(getSelectedImages())
     } else if (key === 'g') {
       toggleGallery()
     }
@@ -556,6 +555,8 @@ sketch.keyTyped = () => {
       resetBlend()
     } else if (key === 'g') {
       toggleGallery()
+    } else if (key === 'i') {
+      pane.hidden = !pane.hidden
     } else if (key === 'u') {
       dropFiles()
     } else if (key === 'o') {
@@ -673,12 +674,7 @@ const duplicateRecrop = items => {
 
 // Clear upload files
 function clearUploads () {
-  userUploads.length = 0
-  cimages.clear()
-  clearBtn.hide()
-  uploadBtn.show()
-  actionSound.play()
-  dropFiles()
+  deleteImage(getAllImages())
 }
 
 const saver = (canvas, name) => {
@@ -696,6 +692,11 @@ function download (ctx = target) {
 function getSelectedImages () {
   const selectedItems = document.querySelectorAll('.gallery-image.selected')
   return [...selectedItems]
+}
+
+function getAllImages () {
+  const allItems = document.querySelectorAll('.gallery-image')
+  return [...allItems]
 }
 
 function addImageToGallery (source, uuid) {
@@ -739,8 +740,8 @@ const toggleGallery = () => {
   overlay.classList.toggle('active')
 }
 
-const deleteImage = selectedItems =>
-  selectedItems.forEach(element => {
+const deleteImage = items =>
+  items.forEach(element => {
     cimages.remove(element.dataset.uuid)
     element.remove()
   })
@@ -868,40 +869,6 @@ function splitArrayByRatio (arr, ratios) {
   return result
 }
 
-const outlined = img => {
-  const s = 20 // thickness scale
-  const x = 5 // final position
-  const y = 5
-  const target = createGraphics(img.width + 2 * s, img.height + 2 * s)
-  const dArr = [-1, -1, 0, -1, 1, -1, -1, 0, 1, 0, -1, 1, 0, 1, 1, 1] // offset array
-
-  // Draw images at offsets from the array scaled by s
-  for (let i = 0; i < dArr.length; i += 2) {
-    target.image(img, x + dArr[i] * s, y + dArr[i + 1] * s)
-  }
-
-  // Create a new graphics buffer
-  const buffer = createGraphics(img.width + 2 * s, img.height + 2 * s)
-
-  // Draw a colored rectangle on the buffer
-  buffer.fill(0)
-  buffer.rect(0, 0, width + 2 * s, height + 2 * s)
-
-  // Set the blend mode of the canvas to "source-in"
-  target.drawingContext.globalCompositeOperation = 'source-in'
-
-  // Draw the buffer on the canvas
-  target.image(buffer, 0, 0)
-
-  // Reset the blend mode of the canvas
-  target.drawingContext.globalCompositeOperation = 'source-over'
-
-  // Draw original image in normal mode
-  target.image(img, x, y)
-
-  return target
-}
-
 const layerGen = {
   genLayer0: null,
   genLayer1: null,
@@ -915,8 +882,8 @@ layerGen.genLayer0 = imgs => {
       count: int(random(2, 10)),
       angle: 0,
       length: target.height / 2,
-      rangeA: PI * 5,
-      rangeL: target.height,
+      angleRange: PI * 5,
+      lengthRange: target.height,
       scaleStart: 0.4,
       scaleEnd: 1.5,
       rotationStart: 0,
@@ -924,15 +891,19 @@ layerGen.genLayer0 = imgs => {
     })
 }
 
+// layerImages, count, angle, length, rangeA, rangeL, scaleStart, scaleEnd, rotationStart, rotationEnd
+
+// layer2Items = generateCollageItems(layer2Images, random(10, 25), 0, height * 0.15, PI * 5, 150, 0.1, random(0.3, 0.8), -PI / 6, PI / 6);
+
 layerGen.genLayer1 = imgs => {
   return () =>
     generateCollageItems({
       imgObjs: imgs,
       count: int(random(10, 25)),
-      angle: 90,
-      length: target.height / 2,
-      rangeA: PI * 5,
-      rangeL: target.height,
+      angle: 0, // 90,
+      length: target.height * 0.5, // target.height / 2,
+      angleRange: PI * 5,
+      lengthRange: 150, // target.height,
       scaleStart: 0.1,
       scaleEnd: random(0.8, 2.0),
       rotationStart: -PI / 6,
@@ -940,17 +911,19 @@ layerGen.genLayer1 = imgs => {
     })
 }
 
+// generateCollageItems(layer3Images, random(10, 25), 0, height * 0.66, PI * 5, height * 0.66, 0.1, random(0.2, 0.5), -0.05, 0.05);
+
 layerGen.genLayer2 = imgs => {
   return () =>
     generateCollageItems({
       imgObjs: imgs,
       count: int(random(10, 25)),
       angle: config.layer2Config.angle,
-      length: config.layer2Config.length, // target.height / 2,
-      rangeA: config.layer2Config.rangeA, // PI * 5,
-      rangeL: config.layer2Config.rangeL, // target.height,
-      scaleStart: config.layer2Config.scaleStart, // 0.3, // 0.1,
-      scaleEnd: config.layer2Config.scaleEnd, // 3.0, // random(0.8, 2.0),
+      length: config.layer2Config.length, // target.height * 0.66,
+      angleRange: config.layer2Config.angleRange, // PI * 5,
+      lengthRange: config.layer2Config.lengthRange, // target.height * 0.66,
+      scaleStart: config.layer2Config.scaleStart, // 0.1,
+      scaleEnd: config.layer2Config.scaleEnd, // random(0.8, 2.0),
       rotationStart: config.layer2Config.rotationStart,
       rotationEnd: config.layer2Config.rotationEnd
     })
@@ -992,13 +965,12 @@ function mode3 () {
 const drawMode3 = layers => {
   // I keep changing my mind on this
   target.background(255)
-  // target.imageMode(CENTER)
+
   // drawing in reverse because.... layer 3 is the largest, always ???
   for (let i = layers.length - 1; i >= 0; i--) {
     drawCollageitems(layers[i])
   }
 
-  // outline canvas
   outlineCanvas()
 
   target.imageMode(CORNER)
@@ -1006,7 +978,7 @@ const drawMode3 = layers => {
   random(sounds).play()
 }
 
-function outlineCanvas() {
+function outlineCanvas () {
   if (config.outline) {
     target.strokeWeight(config.outlineWeight)
     target.stroke('black')
@@ -1020,20 +992,20 @@ function generateCollageItems ({
   count,
   angle,
   length,
-  rangeA,
-  rangeL,
+  angleRange,
+  lengthRange,
   scaleStart,
   scaleEnd,
   rotationStart,
   rotationEnd
 }) {
-  let layerItems = []
+  const layerItems = []
   for (let i = 0; i < imgObjs.length; i++) {
     const img = imgObjs[i]
     for (let j = 0; j < count; j++) {
-      let item = new OutlineableCollageItem(img, null, config.outlineWeight)
-      item.angle = angle + random(-rangeA / 2, rangeA / 2)
-      item.l = length + random(-rangeL / 2, rangeL / 2)
+      const item = new OutlineableCollageItem(img, null, config.outlineWeight)
+      item.angle = angle + random(-angleRange / 2, angleRange / 2)
+      item.length = length + random(-lengthRange / 2, lengthRange / 2)
       item.scaling = random(scaleStart, scaleEnd)
       // item.thickness = config.outlineWeight
       item.rotation = item.angle + HALF_PI + random(rotationStart, rotationEnd)
@@ -1050,7 +1022,7 @@ function generateCollageItems ({
 // this is a wrapper around OutlineableImage
 function OutlineableCollageItem (outlineableImg) {
   this.angle = 0
-  this.l = 0
+  this.length = 0
   this.rotation = 0
   this.scaling = 1
   this.image = outlineableImg.original
@@ -1071,10 +1043,11 @@ function drawCollageitems (layerItems) {
     const item = layerItems[i]
     target.push()
     target.translate(
-      target.width / 2 + cos(item.angle) * item.l,
-      target.height / 2 + sin(item.angle) * item.l
+      target.width / 2 + cos(item.angle) * item.length,
+      target.height / 2 + sin(item.angle) * item.length
     )
     target.rotate(item.rotation)
+
     if (item.oi && item.oi.draw) {
       target.imageMode(CORNER)
       item.oi.draw({ x: 0, y: 0, scaling: item.scaling, target, config })

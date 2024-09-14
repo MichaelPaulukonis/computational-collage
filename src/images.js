@@ -61,8 +61,8 @@ export class OutlineableImage extends CollageImage {
     }
     target.image(
       this.orig,
-      x,
-      y,
+      x - (this.orig.width * scaling) / 2,
+      y - (this.orig.height * scaling) / 2,
       this.orig.width * scaling,
       this.orig.height * scaling
     )
