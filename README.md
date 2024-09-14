@@ -1,5 +1,10 @@
 # Computational Collage
 
+I've worked with other "collage" projects, but nothing made me very happy.
+
+Then I looked again at , and liked a number of the results, despite them being utterly unlike anything I had worked with before.
+
+Also taking inspiration from a Generatie Design application Code-Package-p5.js/01_P/P_4_2_1_02
 
 ## roadmap
 
@@ -17,6 +22,7 @@
 - add help screen
 - ~~publish to github.io~~
 - outlines/masks into CollageImage class?
+- import vector-path along with transparents for outlines
 
 ## some things to look at
 
@@ -45,3 +51,36 @@ Learn more about the project at: https://www.zhixinlin.com/computational-collage
 Developed by Zhixin Lin
 
 ### There have been significant changes since the original
+
+uses https://github.com/makinteract/p5js-vite?tab=readme-ov-file
+
+
+## image-shaper
+
+- originally @ https://editor.p5js.org/MichaelPaulukonis/sketches/cg_LK7asX
+- used to create a zipped pair of a cutout image with the vectors of that cutout
+- the file is then imported by another collage-program of mine
+
+### roadmap
+
+- shape "library"
+  - see the thing used for .... that other thing.
+  - the one that was mostly dumb html
+- load existing vectors onto image
+- standard shapes
+  - including text <https://erraticgenerator.com/blog/p5js-texttopoints-function/>
+- bezier curves, wooo!
+- ~~rotation~~
+- ~~edit vectors once drawn (prior to render)~~
+- better handling of in/out sizes
+  - semi-handled, but we should display size and allow shrinking
+- some semblance of a UI
+- https://programmingdesignsystems.com/shape/custom-shapes/index.html
+  - https://programmingdesignsystems.com/shape/procedural-shapes/index.html
+  - contours are the p5js term for "holes" in a shape
+- shapes https://github.com/gaba5/p5.shape.js
+- https://c2js.org/examples.html?name=Chromosome3
+
+## new modes
+
+- "checkerboard" pattern - alternate squares from two images
