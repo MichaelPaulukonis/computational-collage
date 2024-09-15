@@ -18,12 +18,11 @@ const images = [] // array for source images
 const cimages = new Images()
 let patternImages = []
 let solids = []
-const userUploads = [] // buffer array for storing user uploads
 let isHorizontal = true // Initial boolean value of pattern direction
 let isBlended = false // Initial bool value of the image blending status
 let displayCanvas // canvas
 
-const COLS = createCols('https://coolors.co/bcf8ec-aed9e0-9fa0c3-8b687f-7b435b')
+const COLS = createColors('https://coolors.co/bcf8ec-aed9e0-9fa0c3-8b687f-7b435b')
 
 const activityModes = {
   DRAWING: 'draw',
@@ -107,7 +106,6 @@ const config = {
   solidProb: 0.8,
   fragmentStrategy: fragmentStrategies.RANDOM,
   patternsReady: false,
-  selectedIndex: 0,
   layer0Config,
   layer1Config,
   layer2Config,
@@ -218,8 +216,8 @@ sketch.setup = () => {
   parmTab.addBinding(config, 'outline')
   parmTab.addBinding(config, 'circle')
   parmTab.addBinding(config, 'outlineWeight', { min: 1, max: 200, step: 1 })
-  parmTab.addBinding(config, 'stripMin', { min: 50, max: 900, step: 25 })
-  parmTab.addBinding(config, 'stripMax', { min: 100, max: 1000, step: 25 })
+  parmTab.addBinding(config, 'stripMin', { min: 50, max: 2000, step: 25 })
+  parmTab.addBinding(config, 'stripMax', { min: 50, max: 2000, step: 25 })
   parmTab.addBinding(config, 'stripCount', { min: 1, max: 200, step: 1 })
   parmTab.addBinding(config, 'solidProb', { min: 0, max: 1, step: 0.1 })
   parmTab
@@ -329,7 +327,8 @@ function randPattern (t) {
 }
 
 const getColorSolids = () => {
-  const img = cimages.images[config.selectedIndex].original
+  const selectedId = getSelectedImages()[0].dataset.uuid
+  const img = cimages.byId(selectedId).original
   const colors = getDominantColors(img, 5, 30)
   makeSolids(colors)
 }
@@ -728,7 +727,6 @@ const buildGallery = cimgs => {
 const hideGallery = () => {
   overlay.classList.remove('active')
 }
-// Show input image gallery (no more than 9 for speed)
 const toggleGallery = () => {
   if (overlay.classList.contains('active')) {
     activity = activityModes.DRAWING
@@ -1450,7 +1448,7 @@ function blendLightest () {
   actionSound.play()
 }
 
-function createCols (url) {
+function createColors (url) {
   const slaIndex = url.lastIndexOf('/')
   const colStr = url.slice(slaIndex + 1)
   const colArr = colStr.split('-')

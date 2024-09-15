@@ -92,6 +92,10 @@ export class Images {
     return this.croppeds[Math.floor(Math.random() * this.croppeds.length)]
   }
 
+  get byId () {
+    return (uuid) => this.imgs.find(i => i.uuid === uuid)
+  }
+
   add (imgobj) {
     this.imgs.push(imgobj)
   }
