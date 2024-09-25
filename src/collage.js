@@ -99,8 +99,6 @@ const config = {
   mondrianStripes: true,
   mondrianTileSize: 400,
   currentMode: null,
-  galleryTileWidth: 3,
-  galleryOffset: 0,
   stripeSize: 1,
   outline: true,
   outlineColor: 'black',
@@ -730,7 +728,8 @@ async function handleFile (file) {
       const ci = new CroppableImage({ img, cropped })
       cimages.add(ci)
       const source = cropped.canvas.toDataURL()
-      addImageToGallery(source, ci.uuid)
+      const text = `${img.width}x${img.height}`
+      addImageToGallery(source, ci.uuid, text)
     })
   } else if (file.type === 'application/zip' || file.subtype === 'zip') {
     const zip = await JSZip.loadAsync(file)
@@ -744,7 +743,8 @@ async function handleFile (file) {
       const oi = new OutlineableImage({ img, vectors })
       cimages.add(oi)
       const source = img.canvas.toDataURL()
-      addImageToGallery(source, oi.uuid)
+      const text = `${img.width}x${img.height}`
+      addImageToGallery(source, oi.uuid, text)
     })
   } else {
     console.log('Not an image file or image-outline bundle!')
@@ -756,9 +756,11 @@ const duplicateRecrop = items => {
   let cloned = null
   items.forEach(item => {
     const imgObj = cimages.images.find(i => i.uuid === item.dataset.uuid)
+    let text = ''
     if (imgObj instanceof OutlineableImage) {
       cloned = imgObj.clone
       cimages.add(cloned)
+      text = `${cloned.original.width}x${cloned.original.height}`
       source = cloned.orig.canvas.toDataURL()
     } else {
       const tempCropMode = config.cropStrategy
@@ -768,9 +770,10 @@ const duplicateRecrop = items => {
       cloned.cropped.resize(target.width, 0)
       cimages.add(cloned)
       config.cropStrategy = tempCropMode
+      text = `${cloned.original.width}x${cloned.original.height}`
       source = cloned.cropped.canvas.toDataURL()
     }
-    addImageToGallery(source, cloned.uuid)
+    addImageToGallery(source, cloned.uuid, text)
   })
 }
 
@@ -801,13 +804,21 @@ function getAllImages () {
   return [...allItems]
 }
 
-function addImageToGallery (source, uuid) {
+function addImageToGallery (source, uuid, overlayText='') {
   const galleryItem = document.createElement('div')
   galleryItem.classList.add('gallery-image')
   galleryItem.style['background-image'] = `url('${source}')`
   galleryItem.dataset.uuid = uuid
   // via https://stackoverflow.com/a/8452798/41153
-  galleryItem.appendChild(document.createElement('div'))
+  if (overlayText !== '') {
+    const overlay = document.createElement('div')
+    overlay.classList.add('imageinfo')
+    overlay.innerHTML = overlayText
+    galleryItem.appendChild(overlay)
+  }
+  const border = document.createElement('div')
+  border.classList.add('border')
+  galleryItem.appendChild(border)
 
   galleryItem.addEventListener('click', evt =>
     evt.currentTarget.classList.toggle('selected')
@@ -816,6 +827,7 @@ function addImageToGallery (source, uuid) {
   imagesContainer.appendChild(galleryItem)
 }
 
+// display the size of the image as an overlay text
 const buildGallery = cimgs => {
   for (let i = 0; i < cimgs.images.length; i++) {
     const img = cimgs.images[i]
@@ -823,7 +835,8 @@ const buildGallery = cimgs => {
       img instanceof OutlineableImage
         ? img.orig.canvas.toDataURL()
         : img.cropped.canvas.toDataURL()
-    addImageToGallery(source, cimgs.images[i].uuid)
+    const text = `${img.orig.width}x${img.orig.height}`
+    addImageToGallery(source, cimgs.images[i].uuid, text)
   }
 }
 
@@ -833,6 +846,7 @@ const hideGallery = () => {
 const toggleGallery = () => {
   if (overlay.classList.contains('active')) {
     activity = activityModes.DRAWING
+    pane.hidden = false
   } else {
     activity = activityModes.GALLERY
     config.currentMode = mode0

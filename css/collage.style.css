@@ -45,13 +45,28 @@ aside {
   background-position: center; 
 }
 
-#images div.selected > div {
+#images div.selected > div.border {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   border: 10px solid rgba(0, 255, 0, 0.6);
+}
+
+div.selected > div.imageinfo {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.imageinfo {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent background */
+  color: white;
+  padding: 5px;
+  box-sizing: border-box;
 }
 
 aside.active {
