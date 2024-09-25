@@ -22,7 +22,9 @@ let isHorizontal = true // Initial boolean value of pattern direction
 let isBlended = false // Initial bool value of the image blending status
 let displayCanvas // canvas
 
-const COLS = createColors('https://coolors.co/bcf8ec-aed9e0-9fa0c3-8b687f-7b435b')
+const COLS = createColors(
+  'https://coolors.co/bcf8ec-aed9e0-9fa0c3-8b687f-7b435b'
+)
 
 const activityModes = {
   DRAWING: 'draw',
@@ -33,6 +35,12 @@ let activity = activityModes.DRAWING
 const addins = {
   Pattern: 'pattern',
   Solid: 'solid'
+}
+
+const CIRCULAR_SOURCES = {
+  ALL: 'all',
+  CROPPED: 'cropped',
+  OUTLINED: 'outlined'
 }
 
 const cropStrategies = ['CENTER', 'TOP-LEFT', 'BOTTOM-RIGHT', 'RANDOM']
@@ -49,6 +57,7 @@ const circularLayers = resetCircularLayers()
 let circularCollections = [[], [], []]
 
 const circularLayerConfig = (ang, rs, re, ss, se, ra, rl, l) => ({
+  active: true,
   angle: ang,
   rotationStart: rs,
   rotationEnd: re,
@@ -109,15 +118,7 @@ const config = {
   layer0Config,
   layer1Config,
   layer2Config,
-  layer2_angle: 0,
-  layer2_rotationStart: -5,
-  layer2_rotationEnd: 5,
-  layer2_scaleStart: 0.3,
-  layer2_scaleEnd: 3.0,
-  layer2_angleRange: 15,
-  layer2_lengthRange: 1000,
-  layer2_length: 1000,
-  source: 'outlined'
+  source: CIRCULAR_SOURCES.ALL
 }
 
 let uploadBtn, downloadBtn, clearBtn, blendBtn, resetBtn
@@ -246,7 +247,7 @@ sketch.setup = () => {
     .addBlade({
       view: 'list',
       label: 'sources',
-      options: ['all', 'cropped', 'outlined'].map(strat => ({
+      options: Object.values(CIRCULAR_SOURCES).map(strat => ({
         text: strat,
         value: strat
       })),
@@ -255,42 +256,144 @@ sketch.setup = () => {
     .on('change', ({ value }) => {
       config.source = value
     })
-  mode3Tab.addBinding(config.layer2Config, 'angle', {
+  
+  mode3Tab.addBinding(config.layer0Config, 'active', { label: 'Layer 1 active' })
+  mode3Tab.addBinding(config.layer1Config, 'active', { label: 'Layer 2 active' })
+  mode3Tab.addBinding(config.layer2Config, 'active', { label: 'Layer 3 active' })
+
+  const lc0 = mode3Tab.addFolder({
+    title: 'Layer 1',
+    expanded: false // optional
+  })
+
+  lc0.addBinding(config.layer0Config, 'angle', {
     min: -180,
     max: 180,
     step: 1
   })
-  mode3Tab.addBinding(config.layer2Config, 'rotationStart', {
+  lc0.addBinding(config.layer0Config, 'rotationStart', {
     min: -180,
     max: 180,
     step: 1
   })
-  mode3Tab.addBinding(config.layer2Config, 'rotationEnd', {
+  lc0.addBinding(config.layer0Config, 'rotationEnd', {
     min: -180,
     max: 180,
     step: 1
   })
-  mode3Tab.addBinding(config.layer2Config, 'scaleStart', {
+  lc0.addBinding(config.layer0Config, 'scaleStart', {
     min: 0.1,
     max: 10,
     step: 0.1
   })
-  mode3Tab.addBinding(config.layer2Config, 'scaleEnd', {
+  lc0.addBinding(config.layer0Config, 'scaleEnd', {
     min: 0.1,
     max: 10,
     step: 0.1
   })
-  mode3Tab.addBinding(config.layer2Config, 'length', {
+  lc0.addBinding(config.layer0Config, 'length', {
     min: 100,
     max: 2000,
     step: 10
   })
-  mode3Tab.addBinding(config.layer2Config, 'angleRange', {
+  lc0.addBinding(config.layer0Config, 'angleRange', {
     min: 0,
     max: 30,
     step: 1
   })
-  mode3Tab.addBinding(config.layer2Config, 'lengthRange', {
+  lc0.addBinding(config.layer0Config, 'lengthRange', {
+    min: 100,
+    max: 2000,
+    step: 10
+  })
+
+  const lc1 = mode3Tab.addFolder({
+    title: 'Layer 2',
+    expanded: false // optional
+  })
+
+  lc1.addBinding(config.layer1Config, 'angle', {
+    min: -180,
+    max: 180,
+    step: 1
+  })
+  lc1.addBinding(config.layer1Config, 'rotationStart', {
+    min: -180,
+    max: 180,
+    step: 1
+  })
+  lc1.addBinding(config.layer1Config, 'rotationEnd', {
+    min: -180,
+    max: 180,
+    step: 1
+  })
+  lc1.addBinding(config.layer1Config, 'scaleStart', {
+    min: 0.1,
+    max: 10,
+    step: 0.1
+  })
+  lc1.addBinding(config.layer1Config, 'scaleEnd', {
+    min: 0.1,
+    max: 10,
+    step: 0.1
+  })
+  lc1.addBinding(config.layer1Config, 'length', {
+    min: 100,
+    max: 2000,
+    step: 10
+  })
+  lc1.addBinding(config.layer1Config, 'angleRange', {
+    min: 0,
+    max: 30,
+    step: 1
+  })
+  lc1.addBinding(config.layer1Config, 'lengthRange', {
+    min: 100,
+    max: 2000,
+    step: 10
+  })
+
+  const lc2 = mode3Tab.addFolder({
+    title: 'Layer 3',
+    expanded: false // optional
+  })
+
+  lc2.addBinding(config.layer2Config, 'angle', {
+    min: -180,
+    max: 180,
+    step: 1
+  })
+  lc2.addBinding(config.layer2Config, 'rotationStart', {
+    min: -180,
+    max: 180,
+    step: 1
+  })
+  lc2.addBinding(config.layer2Config, 'rotationEnd', {
+    min: -180,
+    max: 180,
+    step: 1
+  })
+  lc2.addBinding(config.layer2Config, 'scaleStart', {
+    min: 0.1,
+    max: 10,
+    step: 0.1
+  })
+  lc2.addBinding(config.layer2Config, 'scaleEnd', {
+    min: 0.1,
+    max: 10,
+    step: 0.1
+  })
+  lc2.addBinding(config.layer2Config, 'length', {
+    min: 100,
+    max: 2000,
+    step: 10
+  })
+  lc2.addBinding(config.layer2Config, 'angleRange', {
+    min: 0,
+    max: 30,
+    step: 1
+  })
+  lc2.addBinding(config.layer2Config, 'lengthRange', {
     min: 100,
     max: 2000,
     step: 10
@@ -878,14 +981,22 @@ layerGen.genLayer0 = imgs => {
     generateCollageItems({
       imgObjs: imgs,
       count: int(random(2, 10)),
-      angle: 0,
-      length: target.height / 2,
-      angleRange: PI * 5,
-      lengthRange: target.height,
-      scaleStart: 0.4,
-      scaleEnd: 1.5,
-      rotationStart: 0,
-      rotationEnd: 0
+      // angle: 0,
+      // length: target.height / 2,
+      // angleRange: PI * 5,
+      // lengthRange: target.height,
+      // scaleStart: 0.4,
+      // scaleEnd: 1.5,
+      // rotationStart: 0,
+      // rotationEnd: 0
+      angle: config.layer0Config.angle,
+      length: config.layer0Config.length, // target.height * 0.66,
+      angleRange: config.layer0Config.angleRange, // PI * 5,
+      lengthRange: config.layer0Config.lengthRange, // target.height * 0.66,
+      scaleStart: config.layer0Config.scaleStart, // 0.1,
+      scaleEnd: config.layer0Config.scaleEnd, // random(0.8, 2.0),
+      rotationStart: config.layer0Config.rotationStart,
+      rotationEnd: config.layer0Config.rotationEnd
     })
 }
 
@@ -898,14 +1009,22 @@ layerGen.genLayer1 = imgs => {
     generateCollageItems({
       imgObjs: imgs,
       count: int(random(10, 25)),
-      angle: 0, // 90,
-      length: target.height * 0.5, // target.height / 2,
-      angleRange: PI * 5,
-      lengthRange: 150, // target.height,
-      scaleStart: 0.1,
-      scaleEnd: random(0.8, 2.0),
-      rotationStart: -PI / 6,
-      rotationEnd: PI / 6
+      // angle: 0, // 90,
+      // length: target.height * 0.5, // target.height / 2,
+      // angleRange: PI * 5,
+      // lengthRange: 150, // target.height,
+      // scaleStart: 0.1,
+      // scaleEnd: random(0.8, 2.0),
+      // rotationStart: -PI / 6,
+      // rotationEnd: PI / 6
+      angle: config.layer1Config.angle,
+      length: config.layer1Config.length, // target.height * 0.66,
+      angleRange: config.layer1Config.angleRange, // PI * 5,
+      lengthRange: config.layer1Config.lengthRange, // target.height * 0.66,
+      scaleStart: config.layer1Config.scaleStart, // 0.1,
+      scaleEnd: config.layer1Config.scaleEnd, // random(0.8, 2.0),
+      rotationStart: config.layer1Config.rotationStart,
+      rotationEnd: config.layer1Config.rotationEnd
     })
 }
 
@@ -931,13 +1050,13 @@ layerGen.genLayer2 = imgs => {
 function mode3 () {
   let sourceImages = []
   switch (config.source) {
-    case 'cropped':
+    case CIRCULAR_SOURCES.CROPPED:
       sourceImages = cimages.croppeds
       break
-    case 'outlined':
+    case CIRCULAR_SOURCES.OUTLINED:
       sourceImages = cimages.outlineds
       break
-    case 'all':
+    case CIRCULAR_SOURCES.ALL:
     default:
       sourceImages = cimages.images
   }
@@ -966,7 +1085,7 @@ const drawMode3 = layers => {
 
   // drawing in reverse because.... layer 3 is the largest, always ???
   for (let i = layers.length - 1; i >= 0; i--) {
-    drawCollageitems(layers[i])
+    if (config[`layer${i}Config`].active) drawCollageitems(layers[i])
   }
 
   outlineCanvas()
