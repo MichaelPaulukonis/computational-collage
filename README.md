@@ -34,6 +34,27 @@ Also taking inspiration from a Generatie Design application Code-Package-p5.js/0
 - also the vectors in https://schultzschultz.com/p5_tools/pixelStretch_Desktop/
 
 
+## shape editor
+
+at `shaper.html`
+
+`r` - rotate mode
+`c` - crop and display
+`s` - save
+`R` - reset
+
+drag-n-drop new image to use
+
+### TODO
+
+- zoom
+- points/lines change with zoom
+- configurable colors
+- curves
+- hollows?
+- link from main page, with explanations
+
+
 ## Original notes 
 
 From < https://github.com/zhixin-lin/computational-collage.git>

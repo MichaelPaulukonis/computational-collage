@@ -183,7 +183,7 @@ sketch.setup = () => {
   const modeTab = tab.pages[1]
   const mode3Tab = tab.pages[2]
 
-  const btn = parmTab
+  parmTab
     .addButton({
       title: 'Patterns',
       label: 'load' // optional

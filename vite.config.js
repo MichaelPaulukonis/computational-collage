@@ -13,5 +13,8 @@ module.exports = defineConfig({
         shaper: resolve(__dirname, 'shaper.html')
       }
     }
+  },
+  server: {
+    open: true
   }
 })

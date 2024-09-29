@@ -4,6 +4,8 @@ import { Vector } from 'p5'
 export default class Point {
   constructor (x, y, ctx) {
     this.pos = ctx.createVector(x, y)
+    // TODO: make this a variable that we can change externally (get/set)
+    // needed for zoom work
     this.radius = 10
     this.isBeingDragged = false
     this.dragEnabled = false
@@ -13,12 +15,15 @@ export default class Point {
   get x () {
     return this.pos.x
   }
+
   get y () {
     return this.pos.y
   }
+
   set x (newVal) {
     this.pos.x = newVal
   }
+
   set y (newVal) {
     this.pos.y = newVal
   }
@@ -132,6 +137,8 @@ export default class Point {
     if (this.dragEnabled) {
       // P5JsUtils.drawControlPoints([this])
     }
+    // this should be a variable
+    this.context.strokeWeight(10)
     this.context.point(this.x, this.y)
   }
 }

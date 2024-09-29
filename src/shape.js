@@ -1,7 +1,7 @@
 import Point from './point.js'
 
 // interface suggested by https://schultzschultz.com/stretch/
-let interfaceSW = 3
+const interfaceSW = 3
 
 // Define a Shape class to hold a collection of Vectors
 // also look @ /Users/michaelpaulukonis/projects/bh_sketchbook/ctxjs/common/shapes/rectangle.js
@@ -22,7 +22,7 @@ class Shape {
   }
 
   addVector (x, y) {
-    let newPoint = new Point(x, y, this.context)
+    const newPoint = new Point(x, y, this.context)
     if (
       this.points.length === 0 ||
       this.points[this.points.length - 1].distTo(newPoint) !== 0
@@ -34,7 +34,7 @@ class Shape {
   getCenter () {
     let x = 0
     let y = 0
-    for (let p of this.points) {
+    for (const p of this.points) {
       // TODO: Point contains .add(), but lacks .div()
       x += p.x
       y += p.y
@@ -95,7 +95,7 @@ class Shape {
 
   handleMouseDragged (ctx = this.context) {
     if (this.isRotating) {
-      let angle = ctx.map(
+      const angle = ctx.map(
         ctx.mouseX - this.dragOffset.x,
         0,
         ctx.width,
@@ -110,7 +110,7 @@ class Shape {
       if (pointDragged) {
         pointDragged.set(ctx.mouseX, ctx.mouseY)
       } else {
-        let mover = new Point(
+        const mover = new Point(
           ctx.mouseX - this.dragOffset.x,
           ctx.mouseY - this.dragOffset.y,
           ctx
@@ -134,7 +134,7 @@ class Shape {
     ctx.stroke('black')
     ctx.noFill()
     ctx.beginShape()
-    for (let p of this.points) {
+    for (const p of this.points) {
       ctx.vertex(p.x, p.y)
     }
     if (mousePoint && this.isOpen) {
@@ -146,13 +146,15 @@ class Shape {
     ctx.beginShape()
     ctx.strokeWeight(interfaceSW * 5)
 
-    for (let p of this.points) {
+    for (const p of this.points) {
       if (mousePoint && !this.isOpen) {
         const d = ctx.dist(mousePoint.x, mousePoint.y, p.x, p.y)
         const threshold = 10 // Adjust this value to change the hover radius
         ctx.stroke(d < threshold ? 'red' : 'black')
       }
-      ctx.point(p.x, p.y)
+      p.draw()
+      // TODO: use built-in methods as much as possible
+      // ctx.point(p.x, p.y)
       ctx.stroke('black')
       if (mousePoint && this.isOpen) {
         ctx.vertex(mousePoint.x, mousePoint.y)
