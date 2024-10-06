@@ -4,12 +4,19 @@ import { Vector } from 'p5'
 export default class Point {
   constructor (x, y, ctx) {
     this.pos = ctx.createVector(x, y)
-    // TODO: make this a variable that we can change externally (get/set)
-    // needed for zoom work
     this.radius = 10
     this.isBeingDragged = false
     this.dragEnabled = false
     this.context = ctx
+    this.strokeWeight = 10
+  }
+
+  get strokeWeight () {
+    return this.strokeWeight
+  }
+
+  set strokeWeight (val) {
+    this.strokeWeight = val
   }
 
   get x () {
@@ -110,7 +117,7 @@ export default class Point {
       heading = c
     }
 
-    let diff = Vector.sub(this.pos, otherPoint)
+    const diff = Vector.sub(this.pos, otherPoint)
     diff.rotate(heading)
     this.x = otherPoint.x + diff.x
     this.y = otherPoint.y + diff.y
@@ -121,12 +128,12 @@ export default class Point {
   }
 
   handleMousePressed () {
-    this.isDragged = this.containsXY(mouseX, mouseY)
+    this.isDragged = this.containsXY(this.context.mouseX, this.context.mouseY)
     return this.isDragged
   }
 
   handleMouseDragged () {
-    this.set(mouseX, mouseY)
+    this.set(this.context.mouseX, this.context.mouseY)
   }
 
   handleMouseReleased () {
@@ -138,7 +145,7 @@ export default class Point {
       // P5JsUtils.drawControlPoints([this])
     }
     // this should be a variable
-    this.context.strokeWeight(10)
+    this.context.strokeWeight(this.strokeWeight)
     this.context.point(this.x, this.y)
   }
 }
