@@ -8,15 +8,15 @@ export default class Point {
     this.isBeingDragged = false
     this.dragEnabled = false
     this.context = ctx
-    this.strokeWeight = 10
+    this.outlineWeight = 10
   }
 
   get strokeWeight () {
-    return this.strokeWeight
+    return this.outlineWeight
   }
 
   set strokeWeight (val) {
-    this.strokeWeight = val
+    this.outlineWeight = val
   }
 
   get x () {
@@ -59,6 +59,7 @@ export default class Point {
   static get ALIGN_MODE_MOVE_3 () {
     return 2
   }
+  
   static get ALIGN_MODE_AVERAGE () {
     return 3
   }
