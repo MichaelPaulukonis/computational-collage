@@ -13,7 +13,7 @@ let target
 let zoom = 1.0
 
 sketch.preload = () => {
-  imgOriginal = sketch.loadImage('/uploads/mona.dots.small.00.png')
+  imgOriginal = sketch.loadImage('./uploads/mona.dots.small.00.png')
 }
 
 sketch.setup = () => {
