@@ -116,7 +116,8 @@ const config = {
   layer0Config,
   layer1Config,
   layer2Config,
-  source: CIRCULAR_SOURCES.ALL
+  source: CIRCULAR_SOURCES.ALL,
+  mute: true
 }
 
 let uploadBtn, downloadBtn, clearBtn, blendBtn, resetBtn
@@ -407,10 +408,15 @@ sketch.setup = () => {
 
   buildGallery(cimages)
   toggleGallery()
-  random(sounds).play()
+  playSound(random(sounds))
 }
 
-function randPattern (t) {
+const playSound = (sound) => {
+  if (config.mute) return
+  sound.play()
+}
+
+const randPattern = (t) => {
   const ptArr = [
     PTN.noise(0.5),
     PTN.noiseGrad(0.4),
@@ -672,7 +678,7 @@ sketch.keyTyped = () => {
         config.mondrianProbFactor === 0 ? 0.9 : config.mondrianProbFactor
     } else if (key === 'm') {
       config.mondrianStripes = !config.mondrianStripes
-      actionSound.play()
+      playSound(actionSound)
     } else if (key === 'n') {
       config.stripeSize += 1 % 20
     } else if (key === 'l') {
@@ -864,7 +870,7 @@ const deleteImage = items =>
 function mode0 () {
   toggleGallery()
 
-  sounds[0].play()
+  playSound(sounds[0])
 }
 
 const modeInit = mode => {
@@ -906,7 +912,7 @@ function mode1 () {
   }
   // TODO: need a better solution
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
-  random(sounds).play()
+  playSound(random(sounds))
 }
 
 // Collaging random chunks
@@ -954,7 +960,7 @@ function mode2 () {
   target.strokeWeight(0)
 
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
-  random(sounds).play()
+  playSound(random(sounds))
 }
 
 function shuffleArray (array) {
@@ -1106,7 +1112,7 @@ const drawMode3 = layers => {
 
   target.imageMode(CORNER)
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
-  random(sounds).play()
+  playSound(random(sounds))
 }
 
 function outlineCanvas () {
@@ -1226,7 +1232,7 @@ function mode4 () {
     }
   }
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
-  random(sounds).play()
+  playSound(random(sounds))
 }
 
 // TODO: check if a box is a subset/superset of another box,
@@ -1320,7 +1326,7 @@ function mode5 () {
 
   target.strokeWeight(0)
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
-  random(sounds).play()
+  playSound(random(sounds))
 }
 
 // Horizontal free strips
@@ -1364,7 +1370,7 @@ function mode6 () {
     }
   }
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
-  random(sounds).play()
+  playSound(random(sounds))
 }
 
 // Mondrian stripes
@@ -1382,7 +1388,7 @@ function mode7 () {
     random(2) < 1
   )
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
-  random(sounds).play()
+  playSound(random(sounds))
 }
 
 // Horizontally stretched
@@ -1414,7 +1420,7 @@ function mode8 () {
     }
   }
   image(target, 0, 0, displayCanvas.width, displayCanvas.height)
-  random(sounds).play()
+  playSound(random(sounds))
 }
 
 // Concentric circle splashes
